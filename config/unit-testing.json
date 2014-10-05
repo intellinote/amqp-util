@@ -1,0 +1,12 @@
+{
+  "amqp": {
+    "unit-test": {
+      "broker": "amqp://guest:guest@localhost:5672",
+      "queue": "amqp-test-queue",
+      "queue-options": null,
+      "exchange": "amqp-test-exchange",
+      "exchange-options": { },
+      "routing-key": "ampq-test-key"
+    }
+  }
+}
