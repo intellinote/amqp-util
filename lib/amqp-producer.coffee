@@ -1,5 +1,7 @@
 # # AMQP Producer
 
+# An AMQP message publisher.
+
 # The `AMQPProducer` is a thin wrapper around
 # [`node-ampq`](https://github.com/postwait/node-amqp/)
 # that can be used directly or as a base class for objects
@@ -8,7 +10,7 @@
 # messages.
 amqp = require 'amqp'
 
-# EXAMPLE OF USE
+# ## Example of Use
 #
 #      var AMQPProducer = require('amqp-util').AMQPProducer;
 #
@@ -35,7 +37,9 @@ amqp = require 'amqp'
 #      });
 #
 
-# **AMQPProducer** - *an AMQP message publisher.*
+# ## Implemenation
+
+# **AMQPProducer**
 class AMQPProducer
 
   # **constructor** - *create a new `AMQPProducer`.*
@@ -155,10 +159,12 @@ class AMQPProducer
 
   on_error:(err)=>console.error "AMQPProducer encountered error",err
 
-# `AMQPProducer` is exported under that name.
+
+# ## Exports
+
+# Exported as `AMQPProducer`.
 exports.AMQPProducer = AMQPProducer
 
-#
 # When loaded directly, use `AMQPProducer` to publish a simple message.
 #
 # Accepts up to 4 command line parameters:

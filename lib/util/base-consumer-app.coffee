@@ -1,3 +1,11 @@
+# <i style="color:#666;font-size:80%">(Note: If you are viewing the [docco](http://jashkenas.github.io/docco/)-generated HTML version of this file, use the "Jump To..." menu in the upper right corner to navigate to the annotated versions of other source files.)</i>
+
+# Extends `BaseApp` to manage the configuration of an `AMQPConsumer`.
+
+# ## Imports
+
+# Conditionally load files from the code-coverage-instrumented lib directory
+# (`lib-cov`) if available.
 path             = require 'path'
 fs               = require 'fs'
 HOMEDIR          = path.join(__dirname,'..','..')
@@ -7,7 +15,9 @@ AMQPConsumer     = require(path.join(LIB_DIR,'amqp-consumer')).AMQPConsumer
 BaseApp          = require(path.join(LIB_DIR,'util','base-app')).BaseApp
 config           = require('inote-util').config.init()
 
-# **BaseConsumerApp** - *extends `BaseApp` to manage the configuration of an `AMQPConsumer`.*
+# ## Implementation
+
+# **BaseConsumerApp**
 #
 # While `BaseConsumerApp` is instantiable, and even executable, it is not
 # really intended to be used as-is.
@@ -37,7 +47,7 @@ config           = require('inote-util').config.init()
 # For example,
 #
 #     #!/usr/bin/env coffee
-#     BaseApp = require('base-consumer-app').BaseConsumerApp
+#     BaseConsumerApp = require('amqp-util').util.BaseConsumerApp
 #
 #     class MyApp extends BaseConsumerApp
 #
@@ -158,6 +168,10 @@ class BaseConsumerApp extends BaseApp
   # **handle_message** - *invoked when a message arrives from the message queue.*
   handle_message:(message,headers,info,raw)->
 
+
+# ## Exports
+
+# Exported as `BaseConsumerApp`.
 exports.BaseConsumerApp = BaseConsumerApp
 
 # If this file is invoked directly, run the `main` method.

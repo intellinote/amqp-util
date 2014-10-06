@@ -1,6 +1,15 @@
+# <i style="color:#666;font-size:80%">(Note: If you are viewing the [docco](http://jashkenas.github.io/docco/)-generated HTML version of this file, use the "Jump To..." menu in the upper right corner to navigate to the annotated versions of other source files.)</i>
+
+# A base class for simple command-line applications.
+
+# ## Imports
+
+#
 optimist         = require 'optimist'
 
-# **BaseApp** - *a base class for simple command-line applications.*
+# ## Implementation
+
+# **BaseApp**
 #
 # While `BaseApp` is instantiable, and even executable, it is not
 # really intended to be used as-is.
@@ -22,7 +31,7 @@ optimist         = require 'optimist'
 # the creation of a simple application that extends from `BaseApp`.
 #
 #     #!/usr/bin/env coffee
-#     BaseApp = require('base-app').BaseApp
+#     BaseApp = require('amqp-util').util.BaseApp
 #
 #     class MyApp extends BaseApp
 #
@@ -139,7 +148,9 @@ class BaseApp
     process.on 'SIGINT',()=>@on_interrupt('SIGINT')
     callback?()
 
-# Export `BaseApp` to the caller.
+# ## Exports
+
+# Exported as `BaseApp`.
 exports.BaseApp = BaseApp
 
 # If this file is invoked directly, run the `main` method.

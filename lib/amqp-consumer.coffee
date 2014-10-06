@@ -1,5 +1,10 @@
 # # AMQP Consumer
 
+
+# An AMQP message consumer.
+
+# ## Imports
+
 # The `AMQPConsumer` is a thin wrapper around
 # [`node-ampq`](https://github.com/postwait/node-amqp/)
 # that can be used directly or as a base class for objects
@@ -8,7 +13,7 @@
 # messages.
 amqp = require 'amqp'
 
-# EXAMPLE OF USE
+# ## Example of Use
 #
 #      var AMQPConsumer = require('amqp-util').AMQPConsumer;
 #
@@ -39,8 +44,10 @@ amqp = require 'amqp'
 #      });
 #
 
-# **AMQPConsumer** - *an AMQP message consumer.*
-#
+# ## Implemenation
+
+# **AMQPConsumer** -
+
 # `AMQPConsumer` can bind to a messages queue and invoke a
 # callback method for any messages it receives.
 class AMQPConsumer

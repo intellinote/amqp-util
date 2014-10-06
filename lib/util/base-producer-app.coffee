@@ -1,3 +1,11 @@
+# <i style="color:#666;font-size:80%">(Note: If you are viewing the [docco](http://jashkenas.github.io/docco/)-generated HTML version of this file, use the "Jump To..." menu in the upper right corner to navigate to the annotated versions of other source files.)</i>
+
+# Extends `BaseApp` to manage the configuration of an `AMQPProducer`.
+
+# ## Imports
+
+# Conditionally load files from the code-coverage-instrumented lib directory
+# (`lib-cov`) if available.
 path             = require 'path'
 fs               = require 'fs'
 HOMEDIR          = path.join(__dirname,'..','..')
@@ -7,8 +15,55 @@ AMQPProducer     = require(path.join(LIB_DIR,'amqp-producer')).AMQPProducer
 BaseApp          = require(path.join(LIB_DIR,'util','base-app')).BaseApp
 config           = require('inote-util').config.init()
 
+# ## Implementation
+
+# **BaseProducerApp**
+#
+# While `BaseProducerApp` is instantiable, and even executable, it is not
+# really intended to be used as-is.
+#
+# Instead, `BaseProducerApp` is designed to be extended by other classes
+# that implement actual command-line applications that include an
+# AMQP producer.
+#
+# Specifically, `BaseProducerApp`:
+#
+#  1. Adds `AMQPProdcuer`-related command-line parameters.
+#
+#  2. Allows those command-line parameters to be read from
+#     a configuration file.
+#
+#  3. Provides a convenience method for initializing the
+#     `AMQPProducer`.
+#
+#  4. Implements a simple `publish_message` method that
+#     can be used to post messages to the queue.
+#
+# In the simplest case, to extend `BaseProducerApp`, simply
+# override invoke the `main` method and begin publishing
+# messages.
+#
+# For example,
+#
+#     #!/usr/bin/env coffee
+#     BaseProducerApp = require('amqp-util').util.BaseProducerApp
+#
+#     class MyApp extends BaseProducerApp
+#
+#       main:()=>
+#         super ()=>
+#           @publish_message "My Message."
+#           @publish_message "My Other Message."
+#           console.log "Done."
+#           process.exit()
+#
+#     if require.main is module
+#       (new MyApp()).main()
+#
+#
 class BaseProducerApp extends BaseApp
 
+  # **producer** - *my `AMQPProducer` instance.*
   producer: null
 
 
@@ -85,6 +140,9 @@ class BaseProducerApp extends BaseApp
     @producer.connect(broker, connection_options, exchange, exchange_options, callback)
 
   # **main** - *rudimentary implementation of the main program loop.*
+  #
+  # Will instantiate and connect the `AMQPProducer` and then
+  # invoke the `callback` method (if any).
   main:(callback)=>
     super()
     @init_producer()
@@ -92,9 +150,13 @@ class BaseProducerApp extends BaseApp
       console.log "Connected." if @argv.verbose
       callback?()
 
+# ## Exports
+
+# Exported as `BaseProducerApp`.
 exports.BaseProducerApp = BaseProducerApp
 
+# If this file is invoked directly, run the `main` method.
 if require.main is module
-  (new BaseProducerApp()).main ()->
+  (new BaseProducerApp()).main ()=>
     console.log "done"
     process.exit()
