@@ -169,22 +169,20 @@ clean-markdown:
 
 # TODO - confirm that all JSON files in config directory are valid when packaging
 
-# cp *.txt $(MODULE_DIR)
 module: js bin test docs coverage
 	mkdir -p $(MODULE_DIR)
-	find module -type f -name "*.litcoffee-toc" -exec rm -rf {} \;
-	find module -type f -name "*.md-toc" -exec rm -rf {} \;
-	find module -type f -name "*.x" -exec rm -rf {} \;
-	mkdir -p $(MODULE_DIR)/logs
 	cp $(PACKAGE_JSON) $(MODULE_DIR)
 	cp -r bin $(MODULE_DIR)
 	cp -r config $(MODULE_DIR)
 	cp -r docs $(MODULE_DIR)
 	cp -r lib $(MODULE_DIR)
 	cp -r test $(MODULE_DIR)
+	cp LICENSE.txt $(MODULE_DIR)
 	cp Makefile $(MODULE_DIR)
 	cp README.md $(MODULE_DIR)
-	cp logs/.clear $(MODULE_DIR)/logs/
+	find module -type f -name "*.litcoffee-toc" -exec rm -rf {} \;
+	find module -type f -name "*.md-toc" -exec rm -rf {} \;
+	find module -type f -name "*.x" -exec rm -rf {} \;
 
 test-module-install: clean-test-module-install js test docs coverage module
 	mkdir ../testing-module-install; cd ../testing-module-install; npm install "$(CURDIR)/module"; node -e "require('assert').ok(require('amqp-util').AMQPProducer);" && cd $(CURDIR) && rm -rf ../testing-module-install && echo "It worked!"
