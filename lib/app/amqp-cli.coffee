@@ -3,16 +3,6 @@
 # A simple command line tool for manipulating Exchanges and Queues within an
 # AMQP-compatiable message broker.
 
-# ## Imports
-
-#
-amqp = require 'amqp'
-
-
-# ## Implementation
-
-# **AMQPCLI**
-#
 # Run it with:
 #
 #     ./bin/amqp-cli --help
@@ -27,9 +17,17 @@ amqp = require 'amqp'
 #     node lib/app/amqp-cli.js --help
 #
 # for more information.
+
+# ## Imports
+
+#
+amqp = require 'amqp'
+
+# ## Implementation
+
+# **AMQPCLI**
 #
 # There's no particular reason to package this utility as a class, we just liked it that way.
-#
 class AMQPCLI
 
   # **report_error** prints the given message to `console.error` then exits with the given `status`.
