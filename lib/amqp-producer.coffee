@@ -90,6 +90,7 @@ class AMQPProducer
     @connection = amqp.createConnection({url:broker_url},connection_options)
     @connection.once 'ready', ()=>
       @exchange = @connection.exchange exchange_name, exchange_options, ()=>
+        @exchange.on 'error', @on_error
         callback?(null,this)
 
   # **default_routing_key** - *the default key value to use in `publish`.*
@@ -151,6 +152,8 @@ class AMQPProducer
         callback?(error_occured)
       else
         callback?(null)
+
+  on_error:(err)=>console.error "AMQPProducer encountered error",err
 
 # `AMQPProducer` is exported under that name.
 exports.AMQPProducer = AMQPProducer

@@ -25,12 +25,21 @@ LIB_DIR   = if fs.existsSync(LIB_COV) then LIB_COV else LIB
 sources = [
   'amqp-consumer'
   'amqp-producer'
-]
+  [ 'util', 'base-app' ]
+  [ 'util', 'base-consumer-app' ]
+  [ 'util', 'base-producer-app' ]
+ ]
 
-# Now we simply load (`require`) the requisite files and pass along whatever
-# they've exported to the module's `exports` object.
+ # Now we simply load (`require`) the requisite files and pass along whatever
+ # they've exported to the module's `exports` object.
 
 for file in sources
+  target = exports
+  if Array.isArray(file)
+    for p in file[0...-1]
+      target[p] ?= {}
+      target = target[p]
+    file = path.join(file...)
   exported = require path.join(LIB_DIR,file)
   for k,v of exported
-    exports[k] = v
+    target[k] = v

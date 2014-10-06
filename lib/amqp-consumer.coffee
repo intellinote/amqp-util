@@ -94,6 +94,8 @@ class AMQPConsumer
     if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
       callback = args.shift()
     @connection = amqp.createConnection({url:connection},connection_options)
+    @connection.on 'error', (err)=>
+      console.log "error",err
     @connection.once 'ready', ()=>
       @queue = @connection.queue queue, queue_options, callback
 

@@ -18,3 +18,9 @@ describe "index",->
     index.AMQPStringConsumer.should.exist
     index.AMQPJSONConsumer.should.exist
     done()
+
+  it "exports util classes", (done)->
+    index.util.BaseApp.should.exist
+    index.util.BaseConsumerApp.should.exist
+    index.util.BaseProducerApp.should.exist
+    done()
