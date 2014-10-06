@@ -10,7 +10,7 @@
   "dependencies": {
     "amqp"            : "latest",
     "forever"         : "latest",
-    "nconf"           : "latest",
+    "inote-util"      : "latest",
     "optimist"        : "latest"
   },
   "devDependencies"   : {
