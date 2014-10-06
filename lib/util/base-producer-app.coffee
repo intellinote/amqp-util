@@ -136,7 +136,6 @@ class BaseProducerApp extends BaseApp
     exchange = @argv.exchange
     connection_options = @json_string_to_object( @argv['connection-options'] )
     exchange_options = @json_string_to_object( @argv['exchange-options'] )
-    console.log exchange_options
     @producer.connect(broker, connection_options, exchange, exchange_options, callback)
 
   # **main** - *rudimentary implementation of the main program loop.*
@@ -157,6 +156,4 @@ exports.BaseProducerApp = BaseProducerApp
 
 # If this file is invoked directly, run the `main` method.
 if require.main is module
-  (new BaseProducerApp()).main ()=>
-    console.log "done"
-    process.exit()
+  (new BaseProducerApp()).main()

@@ -1,18 +1,146 @@
 # AMQP-UTIL
 
-Convenience and utility classes on which to build AMQP producers and consumers in Node.js.
+**AMQP** is the
+[Advanced Message Queuing Protocol](http://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol),
+an [international standard](http://www.amqp.org/) protocol by which
+applications can publish to and subscribe from a message broker such
+as [ActiveMQ](http://en.wikipedia.org/wiki/Apache_ActiveMQ) or
+[RabbitMQ](http://www.rabbitmq.com/).
+
+**amqp-util** is a [Node.js](http://nodejs.org/) library that defines
+convenience and utility classes on which to build AMQP producers and
+consumers in Node.js.
+
+*amqp-util* depends heavily on
+[*node-amqp*](https://github.com/postwait/node-amqp) (which see).
+This module provides utilities and base-classes which wrap
+*node-amqp* in support of common use-cases.
 
 <!-- toc -->
 
+<!--
+
+## Installing
+
+The source code and documentation for *amqp-util* is available on
+GitHub at
+[intellinote/amqp-util](https://github.com/intellinote/amqp-util).
+You can clone the repository via:
+
+```bash
+git clone git@github.com:intellinote/amqp-util
+```
+
+*amqp-util* is deployed as an [npm module](https://npmjs.org/) under
+the name [`amqp-util`](https://npmjs.org/package/amqp-util). Hence you
+can install a pre-packaged version with the command:
+
+```bash
+npm install amqp-util
+```
+
+and you can add it to your project as a dependency by adding a line like:
+
+```javascript
+"amqp-util": "latest"
+```
+
+to the `dependencies` or `devDependencies` part of your `package.json` file.
+
+-->
+
+## Contents
+
+*amqp-util* provides the following:
+
+ * **AMQPConsumer** - an AMQP message consumer (subscriber) that can be
+   used as-is or extended via sub-classes.
+
+ * **AMQPProducer** - an AMQP message producer (publisher) that can be
+   used as-is or extended via sub-classes.
+
+ * **util.BaseConsumerApp** - a base class for command-line applications
+   that consume messages from a Message Queue.
+
+ * **util.BaseProducerApp** - a base class for command-line applications
+   that publish messages to a Message Queue.
+
+ * **amqp-cli** - a command-line utility for manipulating exchanges and queues.
+
+ * **logging-listener** - a simple command-line application that logs
+   messages to the console.
+
+ * **message-publisher** - a simple command-line application that can publish
+   messages from the command-line.
+
+Explore the [lib](./lib) directory for more.
+
+## Quick Start
+
+For a quick and "easy" demonstration of the framework:
+
+1. Install Node.js and RabbitMQ, as described
+   [below](#prerequisites).  Make sure RabbitMQ is running.
+
+2. Run `make clean test bin` to:
+
+    - install any external dependencies defined in `package.json`.
+
+    - run the unit test suite to confirm everything is running
+      properly.
+
+    - generate the executable scripts in the `./bin` directory.
+
+3. Generate the `MyExchange` and `MyQueue` objects used for the
+   demonstration.
+
+   From the project's root directory (the directory containing this
+   file), run:
+
+        NODE_ENV=demo ./bin/amqp-cli create exchange --e.name MyExchange --e.type fanout --e.durable true --e.auto-delete false
+        NODE_ENV=demo ./bin/amqp-cli create queue --q.name MyQueue --q.durable true --q.auto-delete false
+        NODE_ENV=demo ./bin/amqp-cli bind queue --q.name MyQueue --e.name MyExchange
+
+   (You can replace `./bin/amqp-cli` with `node
+   lib/app/amqp-cli.js` or `coffee lib/app/amqp-cli.coffee`, if
+   preferred.)
+
+4. Launch a `logging-listener`, an AMQP consumer that prints any
+   messages it receives to the console.
+
+   From the project's root directory (the directory containing this
+   file), run:
+
+        NODE_ENV=demo ./bin/logging-listener
+
+   (You can replace `./bin/logging-listener` with `node
+   lib/app/logging-listener.js` or `coffee lib/app/logging-listener.coffee`, if
+   preferred.)
+
+5. Use `message-publisher` to publish a message to the exchange from
+   the command line.
+
+   From the project's root directory (the directory containing this
+   file), run:
+
+        NODE_ENV=demo ./bin/publish-message -m "Hello World!"
+
+   (You can replace `./bin/publish-message` with `node
+   lib/app/publish-message.js` or `coffee lib/app/publish-message.coffee`, if
+   preferred.)
+
+6. If everything is working properly, the `logging-listener` should
+   echo the published message to the console.
+
 ## Prerequisites
 
-In order to build this ilbrary you'll need to install Node.js as
+In order to build this library you'll need to install Node.js as
 described at <http://nodejs.org/> or in the
 [Installing Node.js](./docs/installing-nodejs.md) file in the
 [`docs`](./docs) directory.
 
 In addition, to run the unit test suite or other demonstrations you'll
-need to install an AMQP-compatiable message broker such as
+need to install an AMQP-compatible message broker such as
 [RabbitMQ](http://www.rabbitmq.com/).
 
 ## Hacking
@@ -35,11 +163,11 @@ On Windows, you can install [MinGW](http://www.mingw.org/),
 [GNUWin](http://gnuwin32.sourceforge.net/packages/make.htm) or
 [Cygwin](https://www.cygwin.com/), among other sources.
 
-### Quickstart
+### Basics
 
 Ensure that an AMQP message broker (such as RabbitMQ) is running
 locally (or as configured in
-[`config/unit-testing.json`](./config/unit-testing.json).
+[`config/unit-testing.json`](./config/unit-testing.json)).
 
 With `make` installed, run:
 
@@ -60,22 +188,24 @@ exclusively in the `docs` directory.
 From this project's root directory (the directory containing this
 file), type `make help` to see a list of common targets, including:
 
- * `make install` - download and install all external dependencies
+ * `make install` - download and install all external dependencies.
 
- * `make clean` - remove all generated files
+ * `make clean` - remove all generated files.
 
- * `make test` - run the unit-test suite
+ * `make test` - run the unit-test suite.
 
- * `make docs` - generate HTML documenation from markdown files and
-   annotated source code
+ * `make bin` - generate the executable scripts in `./bin`.
 
- * `make docco` - generate an HTML rendering of the annoated source
+ * `make docs` - generate HTML documentation from markdown files and
+   annotated source code.
+
+ * `make docco` - generate an HTML rendering of the annotated source
    code into the `docs/docco` directory.
 
  * `make coverage` - generate a test-coverage report (to the file
    `docs/coverage.html`).
 
- * `make module` - packages the module for upload to npm
+ * `make module` - package the module for upload to npm.
 
  * `make test-module-install` - generates an npm module from this
-   repository and validates that it can be installed using npm
+   repository and validates that it can be installed using npm.

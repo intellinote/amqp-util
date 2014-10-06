@@ -1,0 +1,41 @@
+{
+  "amqp": {
+
+    "NOTE": [
+      "The `consumer` and `producer` configurations below can be used to demonstrate",
+      "the various applications and utilities in this module.",
+      "",
+      "They depend on the existance of a `MyQueue` queue bound to a `MyExchange` exchange.",
+      "To create these objects, you can run the following:",
+      "",
+      "    coffee lib/app/amqp-cli.coffee create exchange --e.name MyExchange --e.type fanout --e.durable true --e.auto-delete false",
+      "    coffee lib/app/amqp-cli.coffee create queue --q.name MyQueue --q.durable true --q.auto-delete false",
+      "    coffee lib/app/amqp-cli.coffee bind queue --q.name MyQueue --e.name MyExchange",
+      "",
+      "of course you can also create the equivalent objects with `rabbitmqctl` or a similar program."
+    ],
+
+    "consumer": {
+      "broker": "amqp://guest:guest@localhost:5672",
+      "queue": "MyQueue",
+      "queue-options": {
+        "passive": true,
+        "noDeclare":true
+      },
+      "subscription-options": null,
+      "key-pattern": "*",
+      "exchange": "MyExchange"
+    },
+
+    "producer": {
+      "broker": "amqp://guest:guest@localhost:5672",
+      "routing-key": "MyRoutingKey",
+      "exchange": "MyExchange",
+      "exchange-options": {
+        "passive": true,
+        "noDeclare":true
+      }
+    }
+
+  }
+}

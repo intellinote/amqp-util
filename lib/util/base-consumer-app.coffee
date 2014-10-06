@@ -168,7 +168,6 @@ class BaseConsumerApp extends BaseApp
   # **handle_message** - *invoked when a message arrives from the message queue.*
   handle_message:(message,headers,info,raw)->
 
-
 # ## Exports
 
 # Exported as `BaseConsumerApp`.
@@ -176,4 +175,4 @@ exports.BaseConsumerApp = BaseConsumerApp
 
 # If this file is invoked directly, run the `main` method.
 if require.main is module
-  (new BaseConsumerApp()).main ()->console.log "Running."
+  (new BaseConsumerApp()).main()
