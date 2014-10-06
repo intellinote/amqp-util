@@ -33,7 +33,7 @@ MOCHA_EXE ?= ./node_modules/.bin/mocha
 TEST ?= $(wildcard test/test-*.coffee)
 MOCHA_TESTS ?= $(TEST)
 MOCHA_TEST_PATTERN ?=
-MOCHA_TIMEOUT ?=-t 3000
+MOCHA_TIMEOUT ?=-t 5000
 MOCHA_TEST_ARGS  ?= -R list --compilers coffee:coffee-script/register $(MOCHA_TIMEOUT) $(MOCHA_TEST_PATTERN)
 MOCHA_EXTRA_ARGS ?=
 
@@ -87,7 +87,6 @@ todo:
 FIND-CHANGE-ME:
 	@grep -C 0 --exclude-dir=node_modules --exclude-dir=.git --exclude=#*# --exclude=.#* --exclude=*.html -IrHE "\-[C]HANGE-ME-" *
 
-# @echo " test-module-install - generate an npm module and validate it"
 help:
 	@echo ""
 	@echo "--------------------------------------------------------------------------------"
@@ -172,10 +171,10 @@ clean-markdown:
 
 # cp *.txt $(MODULE_DIR)
 module: js bin test docs coverage
-	find module -type f -name "*.litcoffee-toc" -exec rm -f {} \;
-	find module -type f -name "*.md-toc" -exec rm -f {} \;
-	find module -type f -name "*.x" -exec rm -f {} \;
 	mkdir -p $(MODULE_DIR)
+	find module -type f -name "*.litcoffee-toc" -exec rm -rf {} \;
+	find module -type f -name "*.md-toc" -exec rm -rf {} \;
+	find module -type f -name "*.x" -exec rm -rf {} \;
 	mkdir -p $(MODULE_DIR)/logs
 	cp $(PACKAGE_JSON) $(MODULE_DIR)
 	cp -r bin $(MODULE_DIR)

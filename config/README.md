@@ -32,11 +32,11 @@ To manage the configuration settings:
 
 To read the configuration settings within your code:
 
-1. `require` `lib/config.coffee` (or `lib/config.js`), and invoke the
+1. `require('inote-util').config`, and invoke the
    `init` method to load the default (`NODE_ENV`-based) configuration.
    For example,
 
-       var config = require('config')).config.init();
+       var config = require('inote-util')).config.init();
 
 2. Invoke `config.get(key)` to access a given property, where `key` is
    a string identifying an attribute in the underlying JSON file.

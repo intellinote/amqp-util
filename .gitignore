@@ -14,6 +14,9 @@ hold
 .npmrc
 config/private.json
 config/local.json
+bin/amqp-cli
+bin/logging-listener
+bin/publish-message
 # GENERAL
 #---------------------------------------------------------------------
 $RECYCLE.BIN/
