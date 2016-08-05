@@ -21,7 +21,7 @@ amqp = require 'amqp'
 #      var queue        = 'amqp-demo-queue';
 #
 #      // Create a Consumer.
-#      var consumer = new AMQPCnsumer();
+#      var consumer = new AMQPConsumer();
 #
 #      // Connect to the exchange, passing a callback to be invoked
 #      // when the connection is established.
