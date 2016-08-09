@@ -373,3 +373,5 @@ class AMQPCLI
 if require.main is module
   cli = new AMQPCLI()
   cli.main()
+
+exports.AMQPCLI = AMQPCLI

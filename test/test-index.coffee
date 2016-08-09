@@ -24,3 +24,7 @@ describe "index",->
     index.util.BaseConsumerApp.should.exist
     index.util.BaseProducerApp.should.exist
     done()
+
+  it "exports cli", (done)->
+    index.app.AMQPCLI.should.exist
+    done()

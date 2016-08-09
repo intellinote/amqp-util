@@ -1,8 +1,3 @@
-# This `index.coffee` (or the generated `index.js`) file is the base file that
-  # in loaded when a user `require`s `amqp-util`.
-
-# <i style="color:#666;font-size:80%">(Note: If you are viewing the [docco](http://jashkenas.github.io/docco/)-generated HTML version of this file, use the "Jump To..." menu in the upper right corner to navigate to the annotated versions of other source files.)</i>
-
 # ## Calculate LIB_DIR
 
 # As we do throughout the source files in this module, in order to
@@ -28,10 +23,11 @@ sources = [
   [ 'util', 'base-app' ]
   [ 'util', 'base-consumer-app' ]
   [ 'util', 'base-producer-app' ]
+  [ 'app',  'amqp-cli' ]
  ]
 
- # Now we simply load (`require`) the requisite files and pass along whatever
- # they've exported to the module's `exports` object.
+# Now we simply load (`require`) the requisite files and pass along whatever
+# they've exported to the module's `exports` object.
 
 for file in sources
   target = exports
