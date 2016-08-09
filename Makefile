@@ -26,7 +26,8 @@ NPM_ARGS ?= --silent
 PACKAGE_VERSION ?= $(shell $(NODE_EXE) -e "console.log(require('./$(PACKAGE_JSON)').version)")
 PACKAGE_NAME ?= $(shell $(NODE_EXE) -e "console.log(require('./$(PACKAGE_JSON)').name)")
 TMP_PACKAGE_DIR ?= packaging-$(PACKAGE_NAME)-$(PACKAGE_VERSION)-tmp
-PACKAGE_DIR ?= $(PACKAGE_NAME)-$(PACKAGE_VERSION)
+PACKAGE_DIR ?= $(PACKAGE_NAME)-v$(PACKAGE_VERSION)
+TEST_MODULE_INSTALL_DIR ?= ../testing-module-install
 
 # MOCHA ########################################################################
 MOCHA_EXE ?= ./node_modules/.bin/mocha
@@ -130,11 +131,14 @@ help:
 
 clean: clean-coverage clean-docco clean-docs clean-js clean-module clean-test-module-install clean-node-modules clean-bin
 
+
 clean-test-module-install:
-	rm -rf ../testing-module-install
+	rm -rf $(TEST_MODULE_INSTALL_DIR)
 
 clean-module:
 	rm -rf $(MODULE_DIR)
+	rm -rf $(PACKAGE_DIR)
+	rm -rf $(PACKAGE_DIR).tgz
 
 clean-node-modules:
 	$(NPM_EXE) $(NPM_ARGS) prune &
@@ -177,9 +181,11 @@ module: js bin test docs coverage
 	find module -type f -name "*.litcoffee-toc" -exec rm -rf {} \;
 	find module -type f -name "*.md-toc" -exec rm -rf {} \;
 	find module -type f -name "*.x" -exec rm -rf {} \;
+	mv module $(PACKAGE_DIR)
+	tar -czf $(PACKAGE_DIR).tgz $(PACKAGE_DIR)
 
-test-module-install: clean-test-module-install js test docs coverage module
-	mkdir ../testing-module-install; cd ../testing-module-install; npm install "$(CURDIR)/module"; node -e "require('assert').ok(require('amqp-util').AMQPProducer);" && cd $(CURDIR) && rm -rf ../testing-module-install && echo "It worked!"
+test-module-install: clean-test-module-install js test docs coverage module $(PACKAGE_DIR).tgz
+	mkdir -p $(TEST_MODULE_INSTALL_DIR); cd $(TEST_MODULE_INSTALL_DIR); npm install "$(CURDIR)/$(PACKAGE_DIR).tgz"; node -e "require('assert').ok(require('amqp-util').AMQPProducer);" && cd $(CURDIR) && rm -rf $(TEST_MODULE_INSTALL_DIR)  && echo "It worked!"
 
 $(NODE_MODULES): $(PACKAGE_JSON)
 	$(NPM_EXE) $(NPM_ARGS) prune
@@ -188,6 +194,7 @@ $(NODE_MODULES): $(PACKAGE_JSON)
 
 npm: $(NODE_MODULES) # an alias
 install: $(NODE_MODULES) # an alias
+
 
 ################################################################################
 # COFFEE TARGETS
