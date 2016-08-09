@@ -19,7 +19,7 @@
     "highlight.js"    : "^9.5",
     "marked"          : "^0.3",
     "marked-toc"      : "^0.3",
-    "mocha"           : "^3.0",
+    "mocha"           : "^2",
     "should"          : "^10.0"
   },
   "main": "lib/index.js",
