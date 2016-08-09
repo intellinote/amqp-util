@@ -1,6 +1,5 @@
 # # AMQP Consumer
 
-
 # An AMQP message consumer.
 
 # ## Imports

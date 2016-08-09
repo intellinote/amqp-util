@@ -1,5 +1,3 @@
-# <i style="color:#666;font-size:80%">(Note: If you are viewing the [docco](http://jashkenas.github.io/docco/)-generated HTML version of this file, use the "Jump To..." menu in the upper right corner to navigate to the annotated versions of other source files.)</i>
-
 # A simple command line tool for manipulating Exchanges and Queues within an
 # AMQP-compatiable message broker.
 
