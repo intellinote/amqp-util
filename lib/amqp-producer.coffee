@@ -93,8 +93,9 @@ class AMQPProducer
     # Now connect.
     @connection = amqp.createConnection({url:broker_url},connection_options)
     @connection.once 'ready', ()=>
-      @exchange = @connection.exchange exchange_name, exchange_options, ()=>
-        @exchange.on 'error', @on_error
+      @exchange = @connection.exchange exchange_name, exchange_options
+      @exchange.on 'error', @on_error
+      @exchange.once "open", ()=>
         callback?(null,this)
 
   # **default_routing_key** - *the default key value to use in `publish`.*
