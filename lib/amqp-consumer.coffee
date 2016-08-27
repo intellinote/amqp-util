@@ -103,7 +103,8 @@ class AMQPConsumer
     @connection.on 'error', (err)=>
       console.log "error",err
     @connection.once 'ready', ()=>
-      @queue = @connection.queue queue, queue_options, callback
+      @queue = @connection.queue queue, queue_options, (response...)=>
+        callback?(null,response...)
 
   # **subscribe** - *start listening for incoming messages.*
   #
