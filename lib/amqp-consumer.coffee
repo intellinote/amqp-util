@@ -4,17 +4,79 @@ AsyncUtil  = require('inote-util').AsyncUtil
 process    = require 'process'
 
 # An AMQP message consumer.
+#
+# This class wraps a single connection to an AMQP message broker.
+#
+# It can be used to create queues, bind queues to exchnages and to subscribe to
+# (new or pre-existing) queues.
+#
+# The typical usage pattern is as follows:
+#
+# ```
+# broker_url = 'amqp://guest:guest@localhost:5672'
+# exchange_name = "amqp.topic"
+# bind_pattern = "#.#"
+#
+# # create a new consumer instance and connect to the broker:
+# consumer = new AMQPConsumer()
+# consumer.connect broker_url, (err)->
+#  if err?
+#    console.error err
+#  else
+#    # set up a new queue and subscribe to it
+#    consumer.subscribe undefined, exchange_name, bind_pattern, message_handler1, (err, queue, queue_name, subscription_tag)->
+#      if err?
+#        console.error err
+#      else
+#        console.log "Created queue named #{queue_name} and subscribed to it with tag #{subscription_tag}."
+#        # create another subscriber to that same queue
+#        consumer.subscribe queue_name, message_handler2, (err, queue2, queue_name2, subscription_tag2)->
+#          if err?
+#            console.error err
+#          else
+#            console.log "Created a second subscription on the queue named #{queue_name} and swith tag #{subscription_tag2}."
+#            # create a subscriber to a different queue
+#            consumer.subscribe "custom-name", message_handler3, (err, queue3, queue_name3, subscription_tag3)->
+#              if err?
+#                console.error err
+#              else
+#                console.log "Created queue named #{queue_name3} and subscribed to it with tag #{subscription_tag3}."
+# ```
+#
+# And later:
+#
+# ```
+# consumer.destroy_queue queue_name(()->undefined)
+# ```
+#
+# or:
+#
+# ```
+# consumer.disconnect(()->undefined)
+# ```
+#
 class AMQPConsumer
 
   @deprecation_warning_shown: false
+  @always_show_deprecation_warning: false
 
   constructor:(args...)->
     if args? and args.length > 0
-      unless AMQPConsumer.deprecation_warning_shown
+      if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
         console.error "WARNING: Passing arguments to the AmqpConsumer constructor is deprecated. Please use the new API."
         AMQPConsumer.deprecation_warning_shown = true
       @old_connect(args...)
 
+  # **message_converter** - *a utility method used to convert the message before consuming.*
+  #
+  # (Default method is the identity function, no conversion occurs.)
+  message_converter:(msg)=>msg
+
+  #  ██████  ██████  ███    ██ ███    ██ ███████  ██████ ████████ ██  ██████  ███    ██
+  # ██      ██    ██ ████   ██ ████   ██ ██      ██         ██    ██ ██    ██ ████   ██
+  # ██      ██    ██ ██ ██  ██ ██ ██  ██ █████   ██         ██    ██ ██    ██ ██ ██  ██
+  # ██      ██    ██ ██  ██ ██ ██  ██ ██ ██      ██         ██    ██ ██    ██ ██  ██ ██
+  #  ██████  ██████  ██   ████ ██   ████ ███████  ██████    ██    ██  ██████  ██   ████
 
   # Establish a new connection to the specified broker.
   #
@@ -92,90 +154,12 @@ class AMQPConsumer
        callback?(undefined, false)
        return false
 
-  # returns the pre-existing queue with the specified name (if any)
-  get_queue:(queue_name)=>
-    return @queues_by_name?[queue_name]
-
-  # returns the name of the queue associated with the given consumer tag (if any)
-  get_queue_name_for_subscription_tag:(subscription_tag)=>
-    return @queue_names_by_subscription_tag?[subscription_tag]
-
-  # returns the queue associated with the given consumer tag (if any)
-  get_queue_for_subscription_tag:(subscription_tag)=>
-    return @queues_by_name?[@get_queue_name_for_subscription_tag(subscription_tag)]
-
-
-  # Subscribes the given `message_handler` to the specified queue, creating a
-  # new queue if necessary.
-  #
-  # If the queue does not already exist we will attempt to create it.
-  #
-  # If exchange_name and bind_pattern are also provided, we will bind the queue
-  # to the specified exchange.
-  #
-  # If the queue already exists, we will skip the creation and binding of the
-  # queue and simply add the message_handler as a listener.
-  #
-  # If `queue_or_queue_name` is `null` a name will be generated for the queue.
-  #
-  # args:
-  #  - queue_or_queue_name (required, can be null)
-  #  - queue_options (optional)
-  #  - exchange_name (optional)
-  #  - bind_pattern (optional)
-  #  - subscription_options (optional)
-  #  - message_handler (required)
-  #  - callback - (optional) signature:(err, queue, queue_name, subscription_tag)
-  subscribe:(args...)->
-    # parse args
-    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
-      queue_or_queue_name = args.shift()
-    else if args?.length > 0 and typeof args[0] is 'object' and @_object_is_queue(args[0])
-      queue_or_queue_name = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
-      queue_options = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
-      exchange_name = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
-      bind_pattern = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
-      subscription_options = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
-      message_handler = args.shift()
-    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
-      callback = args.shift()
-    if exchange_name? and not bind_pattern?
-      bind_pattern = exchange_name
-      exchange_name = null
-    # validate args
-    unless message_handler?
-      err = new Error("message hander is required here.")
-      if callback?
-        callback err
-      else
-        throw err
-    else
-      @_maybe_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
-        if err?
-          if callback?
-            callback err
-          else
-            throw err
-        else
-          @subscribe_to_queue (queue ? queue_name), subscription_options, message_handler, callback
-
-  # args:
-  #  - queue_or_queue_name
-  #  - queue_options - (optional)
-  #  - exchange_name - (optional)
-  #  - bind_pattern  - (optional)
-  #  - callback - signature:(err, queue)
-  _maybe_queue:(queue_or_queue_name, args..., callback)=>
-    [queue, queue_name] = @_to_queue_queue_name_pair queue_or_queue_name
-    if queue?
-      callback? undefined, queue, false
-    else
-      @queue queue_name, args..., callback
+  #  ██████  ██    ██ ███████ ██    ██ ███████ ███████
+  # ██    ██ ██    ██ ██      ██    ██ ██      ██
+  # ██    ██ ██    ██ █████   ██    ██ █████   ███████
+  # ██ ▄▄ ██ ██    ██ ██      ██    ██ ██           ██
+  #  ██████   ██████  ███████  ██████  ███████ ███████
+  #     ▀▀
 
   # ensures the specified queue exists
   # args:
@@ -185,7 +169,7 @@ class AMQPConsumer
   #  - bind_pattern  - (optional)
   #  - callback - signature:(err, queue)
   # when exchange_name and/or bind_pattern are included the queue will automatically be bound to the specfied exchange
-  queue:(args...)=>
+  create_queue:(args...)=>
     # parse args
     if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
       queue_name = args.shift()
@@ -221,34 +205,29 @@ class AMQPConsumer
             callback? undefined, queue, queue_name, undefined, undefined
       return queue_name
 
-  _object_is_queue:(obj)->
-    return obj?.constructor?.name is 'Queue'
+  # an alias for `create_queue`
+  get_queue:(args...)=>
+    @create_queue args...
 
-  _to_queue_queue_name_pair:(queue_or_queue_name)=>
-    if typeof queue_or_queue_name is 'string'
-      queue_name = queue_or_queue_name
-      queue = @queues_by_name[queue_or_queue_name] ? undefined
-    else if @_object_is_queue queue_or_queue_name
-      queue = queue_or_queue_name
-      queue_name = queue?.__amqp_util_queue_name ? undefined
+  destroy_queue:(queue_or_queue_name, options, callback)=>
+    if typeof options is 'function' and not callback?
+      callback = options
+      options = undefined
+    [queue, queue_name] = @_to_queue_queue_name_pair(queue_or_queue_name)
+    unless queue?
+      callback new Error("Queue #{queue_name} not known.")
     else
-      queue_name = undefined
-      queue = undefined
-    return [queue, queue_name]
+      queue.destroy(options)
+      unless options.ifUnused or options.ifEmpty # when ifUnused or ifEmpty is set there doesn't seem to be any way to tell if the queue was actually destroyed, so keep the reference
+        if queue_name?
+          delete @queues_by_name[queue_name]
+      callback undefined
 
-  _make_or_get_queue:(queue_name, queue_options, callback)=>
-    if @queues_by_name?[queue_name]?
-      callback? undefined, @queues_by_name[queue_name], false
-    else
-      args_to_pass = []
-      args_to_pass.push queue_name
-      if queue_options?
-        args_to_pass.push queue_options
-      @connection.queue args_to_pass..., (queue)=>
-        if queue?
-          @queues_by_name[queue_name] = queue
-          queue.__amqp_util_queue_name = queue_name
-        callback? undefined, queue, true
+  # ██████  ██ ███    ██ ██████  ██ ███    ██  ██████  ███████
+  # ██   ██ ██ ████   ██ ██   ██ ██ ████   ██ ██       ██
+  # ██████  ██ ██ ██  ██ ██   ██ ██ ██ ██  ██ ██   ███ ███████
+  # ██   ██ ██ ██  ██ ██ ██   ██ ██ ██  ██ ██ ██    ██      ██
+  # ██████  ██ ██   ████ ██████  ██ ██   ████  ██████  ███████
 
   bind_queue_to_exchange:(queue_or_queue_name, exchange_name, bind_pattern, callback)=>
     if typeof bind_pattern is 'function' and not callback?
@@ -300,6 +279,11 @@ class AMQPConsumer
           callback = undefined
       queue.unbind exchange_name, bind_pattern
 
+  # ███████ ██    ██ ██████  ███████  ██████ ██████  ██ ██████  ████████ ██  ██████  ███    ██ ███████
+  # ██      ██    ██ ██   ██ ██      ██      ██   ██ ██ ██   ██    ██    ██ ██    ██ ████   ██ ██
+  # ███████ ██    ██ ██████  ███████ ██      ██████  ██ ██████     ██    ██ ██    ██ ██ ██  ██ ███████
+  #      ██ ██    ██ ██   ██      ██ ██      ██   ██ ██ ██         ██    ██ ██    ██ ██  ██ ██      ██
+  # ███████  ██████  ██████  ███████  ██████ ██   ██ ██ ██         ██    ██  ██████  ██   ████ ███████
 
   # arguments: queue_or_queue_name, subscription_options, message_handler, callback
   # message_handler signature TODO document me
@@ -361,177 +345,282 @@ class AMQPConsumer
       delete @queue_names_by_subscription_tag[subscription_tag]
       callback? undefined
 
-
-  ##############################################################################
-  ##############################################################################
-  ##############################################################################
-  ##############################################################################
-
-    # if typeof impl_options is 'function' and not callback?
-    #   callback = impl_options
-    #   impl_options = null
-    # if typeof connection_options is 'function' and not callback?
-    #   callback = connection_options
-    #   connection_options = null
-    # if typeof connection_options is 'function' and not callback?
-    #   callback = connection_options
-    #   connection_options = null
-    # if typeof broker_url isnt 'string' and not connection_options?
-    #   connection_options = broker_url
-    #   broker_url = null
-    #
-    # @connection = amqp.createConnection({url:connection},connection_options)
-    # @connection.on 'error', (err)=>
-    #   console.error "error",err
-    # @connection.once 'ready', ()=>
-    #   @queue = @connection.queue queue, queue_options, (response...)=>
-    #     callback?(null,response...)
-    #
-
-  # **connect** - *connects to a new or existing AMQP exchange.*
+  # Subscribes the given `message_handler` to the specified queue, creating a
+  # new queue if necessary.
   #
-  # Accepts four arguments:
+  # If the queue does not already exist we will attempt to create it.
   #
-  #  - `broker_url` is the URL by which to connect to the message broker
-  #    (e.g., `amqp://guest:guest@localhost:5672`)
+  # If exchange_name and bind_pattern are also provided, we will bind the queue
+  # to the specified exchange.
   #
-  #  - `connection_options` is a partially AMQP-implementation-specific map of
-  #    options. See
-  #    [postwait's node-amqp documentation](https://github.com/postwait/node-amqp/#connection-options-and-url)
-  #    for details.
+  # If the queue already exists, we will skip the creation and binding of the
+  # queue and simply add the message_handler as a listener.
   #
-  #  - `queue` is the name of the AMQP Queue on which to listen.
+  # If `queue_or_queue_name` is `null` a name will be generated for the queue.
   #
-  #  - `queue_options` is an optional map of additional AMQP queue options (see
-  #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#connectionqueuename-options-opencallback)
-  #    for details).
-  #
-  #  - `callback` is an optional function that will be invoked once the consumer
-  #    is ready for use.
-  old_connect:(args...)=>
-    unless AMQPConsumer.deprecation_warning_shown
-      console.error "WARNING: The AmqpConsumer.old_connect method is deprecated. Please use the new API."
-      AMQPConsumer.deprecation_warning_shown = true
-    # Parse out the method parameters, allowing optional values.
-    connection = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
-      connection_options = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
-      queue = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
+  # args:
+  #  - queue_or_queue_name (required, can be null)
+  #  - queue_options (optional)
+  #  - exchange_name (optional)
+  #  - bind_pattern (optional)
+  #  - subscription_options (optional)
+  #  - message_handler (required)
+  #  - callback - (optional) signature:(err, queue, queue_name, subscription_tag)
+  subscribe:(args...)->
+    # parse args
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
+      queue_or_queue_name = args.shift()
+    else if args?.length > 0 and typeof args[0] is 'object' and @_object_is_queue(args[0])
+      queue_or_queue_name = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
       queue_options = args.shift()
-    else
-      queue_options = {}
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
-      callback = args.shift()
-    @connection = amqp.createConnection({url:connection},connection_options)
-    @connection.on 'error', (err)=>
-      console.log "error",err
-    @connection.once 'ready', ()=>
-      @queue = @connection.queue queue, queue_options, (response...)=>
-        callback?(null,response...)
-
-  # **subscribe** - *start listening for incoming messages.*
-  #
-  # The method takes two or four parameters:
-  #
-  #  - `exchange_name` is the name of the AMQP exchange to bind to.
-  #
-  #  - `pattern` is a routing-pattern to be used to filter the messages. (See
-  #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#queuebindexchange-routing)
-  #    for details.)
-  #
-  #  - `callback` is the "handle message" function to invoke when a message
-  #    is received. The callback has the following signature:
-  #
-  #            callback(message, headers, deliveryInfo);
-  #
-  #    (See
-  #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#queuesubscribeoptions-listener)
-  #    for details.)
-  #
-  #  - `done` is a callback method that is invoked when the subscription is
-  #    established and active.
-  #
-  # The `exchange_name` and `pattern` are optional. When present, I will attempt
-  # to bind to the specified exchange. When absent, the queue should already
-  # be bound to some exchange.
-  #
-  old_subscribe:(args...)=>  # args:= exchange_name,pattern,subscribe_options,callback,done
-    unless AMQPConsumer.deprecation_warning_shown
-      console.error "WARNING: The AmqpConsumer.old_subscribe method is deprecated. Please use the new API."
-      AMQPConsumer.deprecation_warning_shown = true
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
       exchange_name = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
-      pattern = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
-      subscribe_options = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
+      bind_pattern = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
+      subscription_options = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
+      message_handler = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
       callback = args.shift()
-    if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
-      done = args.shift()
-    if exchange_name?
-      @old_bind exchange_name, pattern, ()=>
-        @_inner_subscribe(subscribe_options,callback,done)
+    if exchange_name? and not bind_pattern?
+      bind_pattern = exchange_name
+      exchange_name = null
+    # validate args
+    unless message_handler?
+      err = new Error("message hander is required here.")
+      if callback?
+        callback err
+      else
+        throw err
     else
-      @_inner_subscribe(subscribe_options,callback,done)
+      @_maybe_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
+        if err?
+          if callback?
+            callback err
+          else
+            throw err
+        else
+          @subscribe_to_queue (queue ? queue_name), subscription_options, message_handler, callback
 
-  _inner_subscribe:(subscribe_options,callback,done)=>
-    @queue.once 'basicConsumeOk',()=>
-      done?()
-    @queue.subscribe(
-      subscribe_options,
-      (m,h,i,x...)=>callback(@message_converter(m),h,i,x...)
-    ).addCallback(
-      (ok)=>@subscription_tag = ok.consumerTag
-    )
 
-  old_bind:(exchange_name,pattern,callback)=>
-    unless AMQPConsumer.deprecation_warning_shown
-      console.error "WARNING: The AmqpConsumer.old_bind method is deprecated. Please use the new API."
-      AMQPConsumer.deprecation_warning_shown = true
-    @queue.once 'queueBindOk', ()=>callback()
-    @queue.bind(exchange_name,pattern)
+  #  ██████  ████████ ██   ██ ███████ ██████
+  # ██    ██    ██    ██   ██ ██      ██   ██
+  # ██    ██    ██    ███████ █████   ██████
+  # ██    ██    ██    ██   ██ ██      ██   ██
+  #  ██████     ██    ██   ██ ███████ ██   ██
 
-  # **unsubscribe** - *stop listening for incoming messages.*
-  old_unsubscribe:(callback)=>
-    unless AMQPConsumer.deprecation_warning_shown
-      console.error "WARNING: The AmqpConsumer.old_unsubscribe method is deprecated. Please use the new API."
-      AMQPConsumer.deprecation_warning_shown = true
-    try
-      @queue.unsubscribe(@subscription_tag).addCallback ()=>
-        @subscription_tag = null
-        callback?()
-    catch err
-      callback?(err)
+  # returns the queue with the specfied name (if any)
+  get_queue_by_name:(queue_name)=>
+    return @queues_by_name?[queue_name]
 
-  # **message_converter** - *a utility method used to convert the message before consuming.*
+  # returns the name of the queue associated with the given consumer tag (if any)
+  get_queue_name_for_subscription_tag:(subscription_tag)=>
+    return @queue_names_by_subscription_tag?[subscription_tag]
+
+  # returns the queue associated with the given consumer tag (if any)
+  get_queue_for_subscription_tag:(subscription_tag)=>
+    return @queues_by_name?[@get_queue_name_for_subscription_tag(subscription_tag)]
+
+  # ██████  ██████  ██ ██    ██  █████  ████████ ███████
+  # ██   ██ ██   ██ ██ ██    ██ ██   ██    ██    ██
+  # ██████  ██████  ██ ██    ██ ███████    ██    █████
+  # ██      ██   ██ ██  ██  ██  ██   ██    ██    ██
+  # ██      ██   ██ ██   ████   ██   ██    ██    ███████
+
+  # args:
+  #  - queue_or_queue_name
+  #  - queue_options - (optional)
+  #  - exchange_name - (optional)
+  #  - bind_pattern  - (optional)
+  #  - callback - signature:(err, queue)
+  _maybe_queue:(queue_or_queue_name, args..., callback)=>
+    [queue, queue_name] = @_to_queue_queue_name_pair queue_or_queue_name
+    if queue?
+      callback? undefined, queue, false
+    else
+      @create_queue queue_name, args..., callback
+
+  _object_is_queue:(obj)->
+    return obj?.constructor?.name is 'Queue'
+
+  _to_queue_queue_name_pair:(queue_or_queue_name)=>
+    if typeof queue_or_queue_name is 'string'
+      queue_name = queue_or_queue_name
+      queue = @queues_by_name[queue_or_queue_name] ? undefined
+    else if @_object_is_queue queue_or_queue_name
+      queue = queue_or_queue_name
+      queue_name = queue?.__amqp_util_queue_name ? undefined
+    else
+      queue_name = undefined
+      queue = undefined
+    return [queue, queue_name]
+
+  _make_or_get_queue:(queue_name, queue_options, callback)=>
+    if @queues_by_name?[queue_name]?
+      callback? undefined, @queues_by_name[queue_name], false
+    else
+      args_to_pass = []
+      args_to_pass.push queue_name
+      if queue_options?
+        args_to_pass.push queue_options
+      @connection.queue args_to_pass..., (queue)=>
+        if queue?
+          @queues_by_name[queue_name] = queue
+          queue.__amqp_util_queue_name = queue_name
+        callback? undefined, queue, true
+
+
+  ##############################################################################
+  ##############################################################################
+  ##############################################################################
+  # ##############################################################################
   #
-  # (Default method is the identity function, no conversion occurs.)
-  message_converter:(msg)=>msg
+  #   # if typeof impl_options is 'function' and not callback?
+  #   #   callback = impl_options
+  #   #   impl_options = null
+  #   # if typeof connection_options is 'function' and not callback?
+  #   #   callback = connection_options
+  #   #   connection_options = null
+  #   # if typeof connection_options is 'function' and not callback?
+  #   #   callback = connection_options
+  #   #   connection_options = null
+  #   # if typeof broker_url isnt 'string' and not connection_options?
+  #   #   connection_options = broker_url
+  #   #   broker_url = null
+  #   #
+  #   # @connection = amqp.createConnection({url:connection},connection_options)
+  #   # @connection.on 'error', (err)=>
+  #   #   console.error "error",err
+  #   # @connection.once 'ready', ()=>
+  #   #   @queue = @connection.queue queue, queue_options, (response...)=>
+  #   #     callback?(null,response...)
+  #   #
+  #
+  # # **connect** - *connects to a new or existing AMQP exchange.*
+  # #
+  # # Accepts four arguments:
+  # #
+  # #  - `broker_url` is the URL by which to connect to the message broker
+  # #    (e.g., `amqp://guest:guest@localhost:5672`)
+  # #
+  # #  - `connection_options` is a partially AMQP-implementation-specific map of
+  # #    options. See
+  # #    [postwait's node-amqp documentation](https://github.com/postwait/node-amqp/#connection-options-and-url)
+  # #    for details.
+  # #
+  # #  - `queue` is the name of the AMQP Queue on which to listen.
+  # #
+  # #  - `queue_options` is an optional map of additional AMQP queue options (see
+  # #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#connectionqueuename-options-opencallback)
+  # #    for details).
+  # #
+  # #  - `callback` is an optional function that will be invoked once the consumer
+  # #    is ready for use.
+  # old_connect:(args...)=>
+  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #     console.error "WARNING: The AmqpConsumer.old_connect method is deprecated. Please use the new API."
+  #     AMQPConsumer.deprecation_warning_shown = true
+  #   # Parse out the method parameters, allowing optional values.
+  #   connection = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
+  #     connection_options = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
+  #     queue = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
+  #     queue_options = args.shift()
+  #   else
+  #     queue_options = {}
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
+  #     callback = args.shift()
+  #   @connection = amqp.createConnection({url:connection},connection_options)
+  #   @connection.on 'error', (err)=>
+  #     console.log "error",err
+  #   @connection.once 'ready', ()=>
+  #     @queue = @connection.queue queue, queue_options, (response...)=>
+  #       callback?(null,response...)
+  #
+  # # **subscribe** - *start listening for incoming messages.*
+  # #
+  # # The method takes two or four parameters:
+  # #
+  # #  - `exchange_name` is the name of the AMQP exchange to bind to.
+  # #
+  # #  - `pattern` is a routing-pattern to be used to filter the messages. (See
+  # #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#queuebindexchange-routing)
+  # #    for details.)
+  # #
+  # #  - `callback` is the "handle message" function to invoke when a message
+  # #    is received. The callback has the following signature:
+  # #
+  # #            callback(message, headers, deliveryInfo);
+  # #
+  # #    (See
+  # #    [node-ampq's documentation](https://github.com/postwait/node-amqp/#queuesubscribeoptions-listener)
+  # #    for details.)
+  # #
+  # #  - `done` is a callback method that is invoked when the subscription is
+  # #    established and active.
+  # #
+  # # The `exchange_name` and `pattern` are optional. When present, I will attempt
+  # # to bind to the specified exchange. When absent, the queue should already
+  # # be bound to some exchange.
+  # #
+  # old_subscribe:(args...)=>  # args:= exchange_name,pattern,subscribe_options,callback,done
+  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #     console.error "WARNING: The AmqpConsumer.old_subscribe method is deprecated. Please use the new API."
+  #     AMQPConsumer.deprecation_warning_shown = true
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
+  #     exchange_name = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
+  #     pattern = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
+  #     subscribe_options = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
+  #     callback = args.shift()
+  #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'function')
+  #     done = args.shift()
+  #   if exchange_name?
+  #     @old_bind exchange_name, pattern, ()=>
+  #       @_inner_subscribe(subscribe_options,callback,done)
+  #   else
+  #     @_inner_subscribe(subscribe_options,callback,done)
+  #
+  # _inner_subscribe:(subscribe_options,callback,done)=>
+  #   @queue.once 'basicConsumeOk',()=>
+  #     done?()
+  #   @queue.subscribe(
+  #     subscribe_options,
+  #     (m,h,i,x...)=>callback(@message_converter(m),h,i,x...)
+  #   ).addCallback(
+  #     (ok)=>@subscription_tag = ok.consumerTag
+  #   )
+  #
+  # old_bind:(exchange_name,pattern,callback)=>
+  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #     console.error "WARNING: The AmqpConsumer.old_bind method is deprecated. Please use the new API."
+  #     AMQPConsumer.deprecation_warning_shown = true
+  #   @queue.once 'queueBindOk', ()=>callback()
+  #   @queue.bind(exchange_name,pattern)
+  #
+  # # **unsubscribe** - *stop listening for incoming messages.*
+  # old_unsubscribe:(callback)=>
+  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #     console.error "WARNING: The AmqpConsumer.old_unsubscribe method is deprecated. Please use the new API."
+  #     AMQPConsumer.deprecation_warning_shown = true
+  #   try
+  #     @queue.unsubscribe(@subscription_tag).addCallback ()=>
+  #       @subscription_tag = null
+  #       callback?()
+  #   catch err
+  #     callback?(err)
 
-  # # **main** - *keep the process open until killed via Ctrl-C (`SIGINT`).*
-  # main:(options = {})=>
-  #   process.on 'SIGINT', =>
-  #     console.log 'Received kill signal (SIGINT), shutting down.' unless options?.silent
-  #     try
-  #       @unsubscribe ()=>
-  #         @connection.end()
-  #         console.log 'Connection closed.' unless options?.silent
-  #         process.exit()
-  #     catch err
-  #       console.error err
-  #     setTimeout ()=>
-  #       console.error "Unable to close connection in time. Forcefully shutting down." unless options?.silent
-  #       process.exit(1)
-  #     , 5*1000
-
-
-  main:(options = {})=>
-    process.on 'SIGINT', =>
-      console.log 'Received kill signal (SIGINT), shutting down.' unless options?.silent
-      process.exit(0)
+# ███████ ██    ██ ██████   ██████ ██       █████  ███████ ███████ ███████ ███████
+# ██      ██    ██ ██   ██ ██      ██      ██   ██ ██      ██      ██      ██
+# ███████ ██    ██ ██████  ██      ██      ███████ ███████ ███████ █████   ███████
+#      ██ ██    ██ ██   ██ ██      ██      ██   ██      ██      ██ ██           ██
+# ███████  ██████  ██████   ██████ ███████ ██   ██ ███████ ███████ ███████ ███████
 
 # **AMQPStringConsumer** - *an `AMQPConsumer` that automatically converts inbound messages from Buffers into Strings.*
 class AMQPStringConsumer extends AMQPConsumer
@@ -569,10 +658,25 @@ class AMQPStringConsumer extends AMQPConsumer
       msg = msg.data.toString(@encoding)
     return msg
 
+
+# ███████ ██   ██ ██████   ██████  ██████  ████████ ███████
+# ██       ██ ██  ██   ██ ██    ██ ██   ██    ██    ██
+# █████     ███   ██████  ██    ██ ██████     ██    ███████
+# ██       ██ ██  ██      ██    ██ ██   ██    ██         ██
+# ███████ ██   ██ ██       ██████  ██   ██    ██    ███████
+
 # The `AMQPConsumer`, `AMQPStringConsumer` and `AMQPJSONConsumer` types are exported.
 exports.AMQPConsumer       = exports.AmqpConsumer       = AMQPConsumer
 exports.AMQPStringConsumer = exports.AmqpStringConsumer = AMQPStringConsumer
 exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AMQPConsumer # Note that `node-amqp` already handles the object-to-JSON case, but we'll publish a JSONConsumer for consistency.
+
+
+
+# ███    ███  █████  ██ ███    ██
+# ████  ████ ██   ██ ██ ████   ██
+# ██ ████ ██ ███████ ██ ██ ██  ██
+# ██  ██  ██ ██   ██ ██ ██  ██ ██
+# ██      ██ ██   ██ ██ ██   ████
 
 #
 # When loaded directly, use `AMQPConsumer` to listen for messages.
@@ -601,6 +705,8 @@ if require.main is module
           consumer.subscribe_to_queue queue, console.log, ()=>
             console.log "AMQPConsumer connected to broker at \"#{broker_url}\" and now listening for messages on queue \"#{queue_name}\"."
             console.log "Press Ctrl-C to exit."
-            consumer.main()
+            process.on 'SIGINT', ()->
+              console.log 'Received kill signal (SIGINT), shutting down.'
+              process.exit(0)
         else
           process.exit 1
