@@ -177,7 +177,6 @@ module: js bin test docs coverage
 	cp -r bin $(MODULE_DIR)
 	cp -r lib $(MODULE_DIR)
 	cp LICENSE.txt $(MODULE_DIR)
-	cp README.md $(MODULE_DIR)
 	find module -type f -name "*.litcoffee-toc" -exec rm -rf {} \;
 	find module -type f -name "*.md-toc" -exec rm -rf {} \;
 	find module -type f -name "*.x" -exec rm -rf {} \;

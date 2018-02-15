@@ -20,9 +20,6 @@ LIB_DIR   = if fs.existsSync(LIB_COV) then LIB_COV else LIB
 sources = [
   'amqp-consumer'
   'amqp-producer'
-  [ 'util', 'base-app' ]
-  [ 'util', 'base-consumer-app' ]
-  [ 'util', 'base-producer-app' ]
   [ 'app',  'amqp-cli' ]
  ]
 

@@ -1,5 +1,6 @@
 amqp                  = require 'amqp'
 should                = require 'should'
+assert                = require 'assert'
 fs                    = require 'fs'
 path                  = require 'path'
 HOMEDIR               = path.join(__dirname,'..')
@@ -35,15 +36,19 @@ describe 'AMQPProducer',->
 
   it "can publish messages",(done)=>
     # Thanks to the magic of node.js callbacks, this test case reads backwards.
-
+    amqpp = null
     # In a moment we'll subscribe to messages from the Queue.
     # Once our subscription is set up, we will publish a couple of messages.
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer TEST_BROKER, null, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.publish {body:"test-message"},TEST_ROUTING_KEY,null, (err)->
-          should.not.exist err
-        amqpp.publish {body:"test-message"},TEST_ROUTING_KEY,null, (err)->
-          should.not.exist err
+      amqpp = new AMQPProducer()
+      amqpp.connect TEST_BROKER, (err)=>
+        assert.ok not err?, err
+        amqpp.get_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
+          assert.ok not err?, err
+          amqpp.publish TEST_EXCHANGE, {body:"test-message"}, TEST_ROUTING_KEY, (err)->
+            should.not.exist err
+          amqpp.publish TEST_EXCHANGE, {body:"test-message"}, TEST_ROUTING_KEY, (err)->
+            should.not.exist err
 
     # The `received` array will contain the messages that have been received by our handler.
     received = []
@@ -58,7 +63,8 @@ describe 'AMQPProducer',->
         if received.length is 2
           received[0].message.body.should.equal 'test-message'
           received[1].message.body.should.equal 'test-message'
-          done()
+          amqpp.disconnect ()=>
+            done()
         else
           received.length.should.be.above 0
           received.length.should.not.be.above 2
@@ -68,9 +74,12 @@ describe 'AMQPProducer',->
 
   it "supports a default routing key",(done)=>
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer TEST_BROKER, null, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.default_routing_key = TEST_ROUTING_KEY
-        amqpp.publish "test-message"
+      amqpp = new AMQPProducer()
+      amqpp.connect TEST_BROKER, (err)=>
+        assert.ok not err?, err
+        amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
+          amqpp.default_routing_key = TEST_ROUTING_KEY
+          amqpp.publish TEST_EXCHANGE, "test-message"
     @queue.once 'queueBindOk', ()=>
       @queue.subscribe (message,headers,info)->
         message.data.toString().should.equal 'test-message'
@@ -79,45 +88,29 @@ describe 'AMQPProducer',->
 
   it "supports default publishing options",(done)=>
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer TEST_BROKER, null, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.set_default_publish_header "Foo", "Bar"
-        amqpp.publish "test-message", TEST_ROUTING_KEY
+      amqpp = new AMQPProducer()
+      amqpp.connect TEST_BROKER, (err)=>
+        assert.ok not err?, err
+        amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
+          assert.ok not err?, err
+          amqpp.set_default_publish_header "Foo", "Bar"
+          amqpp.publish TEST_EXCHANGE, "test-messageX", TEST_ROUTING_KEY
     @queue.once 'queueBindOk', ()=>
       @queue.subscribe (message,headers,info)->
-        message.data.toString().should.equal 'test-message'
+        message.data.toString().should.equal 'test-messageX'
         headers.Foo.should.equal 'Bar'
         done()
     @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
 
   it "supports a payload converter that changes the message before it is published.",(done)=>
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer TEST_BROKER, null, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.payload_converter = (str)->str.toUpperCase()
-        amqpp.publish "test-message", TEST_ROUTING_KEY
-    @queue.once 'queueBindOk', ()=>
-      @queue.subscribe (message,headers,info)->
-        message.data.toString().should.equal 'TEST-MESSAGE'
-        done()
-    @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
-
-  it "supports optional parameters in the constructor",(done)=>
-    @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer TEST_BROKER, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.payload_converter = (str)->str.toUpperCase()
-        amqpp.publish "test-message", TEST_ROUTING_KEY
-    @queue.once 'queueBindOk', ()=>
-      @queue.subscribe (message,headers,info)->
-        message.data.toString().should.equal 'TEST-MESSAGE'
-        done()
-    @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
-
-
-  it "can defer connecting to the exchange until connect is called",(done)=>
-    @queue.once 'basicConsumeOk',()=>
       amqpp = new AMQPProducer()
-      amqpp.connect TEST_BROKER, TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-        amqpp.payload_converter = (str)->str.toUpperCase()
-        amqpp.publish "test-message", TEST_ROUTING_KEY
+      amqpp.connect TEST_BROKER, (err)=>
+        assert.ok not err?, err
+        amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
+          assert.ok not err?, err
+          amqpp.payload_converter = (str)->str.toUpperCase()
+          amqpp.publish TEST_EXCHANGE, "test-message", TEST_ROUTING_KEY
     @queue.once 'queueBindOk', ()=>
       @queue.subscribe (message,headers,info)->
         message.data.toString().should.equal 'TEST-MESSAGE'
