@@ -161,7 +161,7 @@ describe 'AMQPConsumer (new methods)',->
         @exchange.publish TEST_ROUTING_KEY, "the quick brown fox jumped."
 
   # in this case we have multiple subscribers on top of a single queue; each message is sent to one or the other subscriber but not both
-  it 'can create multiple subscription channels on top of a single queue and single connection',(done)=>
+  it 'can create multiple subscription channels on top of a single queue and single connection (create-queue+subscribe-to-queue case)',(done)=>
     handler1_received_count = 0
     handler2_received_count = 0
     amqpc = new AMQPConsumer()
@@ -205,7 +205,57 @@ describe 'AMQPConsumer (new methods)',->
             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
   # in this case we have multiple subscribers on top of a single queue; each message is sent to one or the other subscriber but not both
-  it 'can create multiple queues on top of a single connection',(done)=>
+  it 'can create multiple subscription channels on top of a single queue and single connection (create-queue-during-subscribe case)',(done)=>
+    handler1_received_count = 0
+    handler2_received_count = 0
+    amqpc = new AMQPConsumer()
+    subscription_tag1 = null
+    subscription_tag2 = null
+    amqpc.connect TEST_BROKER, (err)=>
+      assert.ok not err?, err
+      handler1 = (message,headers,info)=>
+        handler1_received_count += 1
+        message.data.toString().should.equal "my-test-message-#{(handler1_received_count + handler2_received_count)}"
+        if (handler1_received_count + handler2_received_count) is 3
+          amqpc.unsubscribe_from_queue subscription_tag1, (err)->
+            assert.ok not err?, err
+            amqpc.unsubscribe_from_queue subscription_tag2, (err)->
+              assert.ok not err?, err
+              done()
+        else
+          (handler1_received_count + handler2_received_count).should.not.be.above 3
+      amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler1, (err, queue1, queue_name1, st1)=>
+        assert.ok not err?, err
+        assert.ok queue1?
+        assert.ok queue_name1?
+        assert.ok st1?
+        subscription_tag1 = st1
+        #
+        handler2 = (message,headers,info)=>
+          handler2_received_count += 1
+          message.data.toString().should.equal "my-test-message-#{(handler1_received_count + handler2_received_count)}"
+          if (handler1_received_count + handler2_received_count) is 3
+            amqpc.unsubscribe_from_queue subscription_tag2, (err)->
+              assert.ok not err?, err
+              amqpc.unsubscribe_from_queue subscription_tag1, (err)->
+                done()
+          else
+            (handler1_received_count + handler2_received_count).should.not.be.above 3
+        amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler2, (err, queue2, queue_name2, st2)=>
+          assert.ok not err?, err
+          assert.ok queue2?
+          assert.ok queue_name2?
+          assert.ok queue_name2 is queue_name1
+          assert.ok st2?
+          assert.ok st2 isnt st1
+          subscription_tag2 = st2
+          #
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
+
+  # in this case we have multiple QUEUES on top of a single connection; each message is sent to both subscribers
+  it 'can create multiple queues on top of a single connection (create-queue+subscribe-to-queue case)', (done)=>
     handler1_received_count = 0
     handler2_received_count = 0
     amqpc = new AMQPConsumer()
@@ -253,6 +303,58 @@ describe 'AMQPConsumer (new methods)',->
               @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
               @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
               @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
+
+  # in this case we have multiple QUEUES on top of a single connection; each message is sent to both subscribers
+  it 'can create multiple queues on top of a single connection (create-queue-during-subscribe case)',(done)=>
+    handler1_received_count = 0
+    handler2_received_count = 0
+    amqpc = new AMQPConsumer()
+    subscription_tag1 = null
+    subscription_tag2 = null
+    handler1_done = false
+    handler2_done = false
+    amqpc.connect TEST_BROKER, (err)=>
+      assert.ok not err?, err
+      handler1 = (message, headers, info)=>
+        handler1_received_count += 1
+        message.data.toString().should.equal "my-test-message-#{(handler1_received_count)}"
+        if (handler1_received_count) is 3
+          amqpc.unsubscribe_from_queue subscription_tag1, (err)=>
+            handler1_done = true
+            assert.ok not err?, err
+            if handler2_done
+              done()
+        else
+          (handler1_received_count).should.not.be.above 3
+      amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler1, (err, queue1, queue_name1, st1)=>
+        assert.ok not err?, err
+        assert.ok queue1?
+        assert.ok queue_name1?
+        assert.ok st1?
+        subscription_tag1 = st1
+        #
+        handler2 = (message, headers, info)=>
+          handler2_received_count += 1
+          message.data.toString().should.equal "my-test-message-#{(handler2_received_count)}"
+          if (handler2_received_count) is 3
+            amqpc.unsubscribe_from_queue subscription_tag2, (err)=>
+              handler2_done = true
+              assert.ok not err?, err
+              if handler1_done
+                done()
+          else
+            (handler2_received_count).should.not.be.above 3
+        amqpc.subscribe TEST_QUEUE_2, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler2, (err, queue2, queue_name2, st2)=>
+          assert.ok not err?, err
+          assert.ok queue2?
+          assert.ok queue_name2?
+          assert.ok queue_name2 isnt queue_name1
+          assert.ok st2?
+          subscription_tag2 = st2
+          #
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
 describe '[DEPRECATED] AMQPConsumer (old methods)',->
 

@@ -104,6 +104,78 @@ class AMQPConsumer
   get_queue_for_subscription_tag:(subscription_tag)=>
     return @queues_by_name?[@get_queue_name_for_subscription_tag(subscription_tag)]
 
+
+  # Subscribes the given `message_handler` to the specified queue.
+  #
+  # If the queue does not already exist we will attempt to create it.
+  #
+  # If exchange_name and bind_pattern are also provided, we will bind the queue
+  # to the specified exchange.
+  #
+  # If the queue already exists, we will skip the creation and binding of the
+  # queue and simply add the message_handler as a listener.
+  #
+  # If `queue_or_queue_name` is `null` a name will be generated for the queue.
+  #
+  # args:
+  #  - queue_or_queue_name (required, can be null)
+  #  - queue_options (optional)
+  #  - exchange_name (optional)
+  #  - bind_pattern (optional)
+  #  - subscription_options (optional)
+  #  - message_handler (required)
+  #  - callback - (optional) signature:(err, queue, queue_name, subscription_tag)
+  subscribe:(args...)->
+    # parse args
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
+      queue_or_queue_name = args.shift()
+    else if args?.length > 0 and typeof args[0] is 'object' and @_object_is_queue(args[0])
+      queue_or_queue_name = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
+      queue_options = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
+      exchange_name = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'string' or not args[0]?)
+      bind_pattern = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'object' or not args[0]?)
+      subscription_options = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
+      message_handler = args.shift()
+    if args?.length > 0 and (typeof args[0] is 'function' or not args[0]?)
+      callback = args.shift()
+    if exchange_name? and not bind_pattern?
+      bind_pattern = exchange_name
+      exchange_name = null
+    # validate args
+    unless queue_or_queue_name? and message_handler?
+      err = new Error("queue and message hander are required here.")
+      if callback?
+        callback err
+      else
+        throw err
+    else
+      @_maybe_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
+        if err?
+          if callback?
+            callback err
+          else
+            throw err
+        else
+          @subscribe_to_queue (queue ? queue_name), subscription_options, message_handler, callback
+
+  # args:
+  #  - queue_or_queue_name
+  #  - queue_options - (optional)
+  #  - exchange_name - (optional)
+  #  - bind_pattern  - (optional)
+  #  - callback - signature:(err, queue)
+  _maybe_queue:(queue_or_queue_name, args..., callback)=>
+    [queue, queue_name] = @_to_queue_queue_name_pair queue_or_queue_name
+    if queue?
+      callback? undefined, queue, false
+    else
+      @queue queue_name, args..., callback
+
   # ensures the specified queue exists
   # args:
   #  - queue_name - name of the queue (optional)
@@ -148,13 +220,19 @@ class AMQPConsumer
             callback? undefined, queue, queue_name, undefined, undefined
       return queue_name
 
+  _object_is_queue:(obj)->
+    return obj?.constructor?.name is 'Queue'
+
   _to_queue_queue_name_pair:(queue_or_queue_name)=>
-    if typeof queue_or_queue_name is 'string' and @queues_by_name?[queue_or_queue_name]?
+    if typeof queue_or_queue_name is 'string'
       queue_name = queue_or_queue_name
-      queue = @queues_by_name[queue_or_queue_name]
-    else
+      queue = @queues_by_name[queue_or_queue_name] ? undefined
+    else if @_object_is_queue queue_or_queue_name
       queue = queue_or_queue_name
-      queue_name = queue?.__amqp_util_queue_name
+      queue_name = queue?.__amqp_util_queue_name ? undefined
+    else
+      queue_name = undefined
+      queue = undefined
     return [queue, queue_name]
 
   _make_or_get_queue:(queue_name, queue_options, callback)=>
