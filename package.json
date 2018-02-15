@@ -9,7 +9,7 @@
   "dependencies": {
     "amqp"            : "^0.2",
     "forever"         : "^0.15",
-    "inote-util"      : "^1.7",
+    "inote-util"      : "^1.14.2",
     "optimist"        : "^0.6"
   },
   "devDependencies"   : {

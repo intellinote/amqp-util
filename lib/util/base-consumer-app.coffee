@@ -134,7 +134,7 @@ class BaseConsumerApp extends BaseApp
     connection_options = @json_string_to_object( @argv['connection-options'] )
     queue = @argv.queue
     queue_options = @json_string_to_object( @argv['queue-options'] )
-    @consumer.connect broker, connection_options, queue, queue_options, callback
+    @consumer.old_connect broker, connection_options, queue, queue_options, callback
 
   # **subscribe_consumer** - *subscribe to the message queue (using the `@argv` configuration).*
   #
@@ -150,7 +150,7 @@ class BaseConsumerApp extends BaseApp
     exchange = @argv.exchange
     key_pattern = @argv['key-pattern']
     options = @argv['subscription-options'] if @argv['subscription-options']? # be careful not to pass null here as it overrides the defaults
-    @consumer.subscribe(exchange,key_pattern,options,@handle_message,callback)
+    @consumer.old_subscribe(exchange,key_pattern,options,@handle_message,callback)
 
   # **main** - *rudimentary implementation of the main program loop.*
   main:(callback)=>
