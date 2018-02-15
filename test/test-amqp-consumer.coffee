@@ -20,7 +20,7 @@ TEST_EXCHANGE_OPTIONS = config.get 'amqp:unit-test:exchange-options'
 TEST_ROUTING_KEY      = config.get 'amqp:unit-test:routing-key'
 
 
-describe 'AmqpConsumer (new methods)',->
+describe 'AmqpConsumer',->
 
   beforeEach (done)=>
     @connection = amqp.createConnection({url:TEST_BROKER})

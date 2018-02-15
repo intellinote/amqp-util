@@ -24,7 +24,7 @@ AmqpBase   = require(path.join(LIB_DIR, 'amqp-base')).AmqpBase
 #
 # ```
 # broker_url = 'amqp://guest:guest@localhost:5672'
-# exchange_name = "amqp.topic"
+# exchange_name = "amq.topic"
 # bind_pattern = "#.#"
 #
 # # create a new consumer instance and connect to the broker:
@@ -66,6 +66,16 @@ AmqpBase   = require(path.join(LIB_DIR, 'amqp-base')).AmqpBase
 # ```
 #
 class AmqpConsumer extends AmqpBase
+
+  _on_connect:(callback)=>
+    @queues_by_name ?= { }
+    @queue_names_by_subscription_tag ?= { }
+    callback?()
+
+  _on_disconnect:(callback)=>
+    @queues_by_name = undefined  # TODO cleanly unsub from queues?
+    @queue_names_by_subscription_tag ?= { }
+    callback?()
 
   @deprecation_warning_shown: false
   @always_show_deprecation_warning: false
@@ -120,13 +130,13 @@ class AmqpConsumer extends AmqpBase
       callback? new Error("Not connected."), undefined, undefined, undefined, undefined
       return undefined
     else
-      @_make_or_get_queue queue_name, queue_options, (err, queue, queue_is_new)=>
+      @_make_or_get_queue queue_name, queue_options, (err, queue, queue_was_cached)=>
         if err?
           callback? err, queue, queue_name, undefined, undefined
         else unless queue?
           callback?(new Error("Unable to create queue for unknown reasons"), queue, queue_name)
         else
-          if queue_is_new and (bind_pattern? or exchange_name?)
+          if (not queue_was_cached) and (bind_pattern? or exchange_name?)
             @bind_queue_to_exchange queue, exchange_name, bind_pattern, (err, queue, exchange_name, bind_pattern)->
               callback? err, queue, queue_name, exchange_name, bind_pattern
           else
@@ -323,7 +333,7 @@ class AmqpConsumer extends AmqpBase
       else
         throw err
     else
-      @_maybe_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
+      @_maybe_create_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
         if err?
           if callback?
             callback err
@@ -363,15 +373,12 @@ class AmqpConsumer extends AmqpBase
   #  - exchange_name - (optional)
   #  - bind_pattern  - (optional)
   #  - callback - signature:(err, queue)
-  _maybe_queue:(queue_or_queue_name, args..., callback)=>
+  _maybe_create_queue:(queue_or_queue_name, args..., callback)=>
     [queue, queue_name] = @_to_queue_queue_name_pair queue_or_queue_name
     if queue?
-      callback? undefined, queue, false
+      callback? undefined, queue, true
     else
       @create_queue queue_name, args..., callback
-
-  _object_is_queue:(obj)->
-    return obj?.constructor?.name is 'Queue'
 
   _to_queue_queue_name_pair:(queue_or_queue_name)=>
     if typeof queue_or_queue_name is 'string'
@@ -387,7 +394,7 @@ class AmqpConsumer extends AmqpBase
 
   _make_or_get_queue:(queue_name, queue_options, callback)=>
     if @queues_by_name?[queue_name]?
-      callback? undefined, @queues_by_name[queue_name], false
+      callback? undefined, @queues_by_name[queue_name], true
     else
       args_to_pass = []
       args_to_pass.push queue_name
@@ -397,7 +404,7 @@ class AmqpConsumer extends AmqpBase
         if queue?
           @queues_by_name[queue_name] = queue
           queue.__amqp_util_queue_name = queue_name
-        callback? undefined, queue, true
+        callback? undefined, queue, false
 
 
   ##############################################################################
@@ -627,14 +634,13 @@ if require.main is module
   queue_name  = (process.argv?[3]) ? undefined #'namqp-demo-queue'
   consumer = new AmqpConsumer()
   consumer.connect broker_url, (err, x...)=>
-    consumer.queue queue_name, null, "#.#", (err, queue, queue_name, x...)=>
-      consumer.queue queue_name, null, "#.#", (err, queue, queue_name, x...)=>
-        if queue? and not err?
-          consumer.subscribe_to_queue queue, console.log, ()=>
-            console.log "AmqpConsumer connected to broker at \"#{broker_url}\" and now listening for messages on queue \"#{queue_name}\"."
-            console.log "Press Ctrl-C to exit."
-            process.on 'SIGINT', ()->
-              console.log 'Received kill signal (SIGINT), shutting down.'
-              process.exit(0)
-        else
-          process.exit 1
+    consumer.create_queue queue_name, null, "#.#", (err, queue, queue_name, x...)=>
+      if queue? and not err?
+        consumer.subscribe_to_queue queue, console.log, ()=>
+          console.log "AmqpConsumer connected to broker at \"#{broker_url}\" and now listening for messages on queue \"#{queue_name}\"."
+          console.log "Press Ctrl-C to exit."
+          process.on 'SIGINT', ()->
+            console.log 'Received kill signal (SIGINT), shutting down.'
+            process.exit(0)
+      else
+        process.exit 1

@@ -37,8 +37,7 @@ class AmqpBase
     if broker_url?
       connection_options.url = broker_url
     error_handler ?= (err)->
-      console.error "ERROR in AmqpBase.connect:", err
-
+      console.error "ERROR:", err
     # check input parameters
     unless connection_options.url?
       callback? new Error("Expected a broker URL value.")
@@ -47,38 +46,48 @@ class AmqpBase
       if @connection?
         callback? new Error("Already connected; please disconnect first.")
       else
-        @queues_by_name ?= { }
-        @queue_names_by_subscription_tag ?= { }
-        # create the connection
-        called_back = false
-        @connection = amqp.createConnection connection_options, impl_options
-        @connection.once 'error', (err)=>
-          unless called_back
-            called_back = true
-            callback? err, undefined
-            callback = undefined
-        if error_handler?
-          @connection.on 'error', error_handler
-        @connection.once 'ready', ()=>
-          unless called_back
-            called_back = true
-            callback? undefined, @connection
-            callback = undefined
+        @_on_connect ()=>
+          # create the connection
+          called_back = false
+          @connection = amqp.createConnection connection_options, impl_options
+          @connection.once 'error', (err)=>
+            unless called_back
+              called_back = true
+              callback? err, undefined
+              callback = undefined
+          if error_handler?
+            @connection.on 'error', error_handler
+          @connection.once 'ready', ()=>
+            unless called_back
+              called_back = true
+              callback? undefined, @connection
+              callback = undefined
     return @connection
 
   disconnect:(callback)=>
     if @connection?.disconnect?
-       @connection.disconnect()
-       @connection = undefined
-       @queues_by_name = undefined  # TODO cleanly unsub from queues?
-       @queue_names_by_subscription_tag ?= { }
-       callback?(undefined, true)
+       @_on_disconnect ()=>
+         @connection.disconnect()
+         @connection = undefined
+         callback?(undefined, true)
        return true
     else
        @connection = undefined
-       @queues_by_name = undefined
-       @queue_names_by_subscription_tag = undefined
-       callback?(undefined, false)
+       @_on_disconnect ()=>
+         callback?(undefined, false)
        return false
+
+  # hook for subclasses to clear or set state on connect
+  _on_connect:(callback)->callback?()
+
+  # hook for subclasses to clear or set state on connect
+  _on_disconnect:(callback)->callback?()
+
+  _object_is_queue:(obj)->
+    return obj?.constructor?.name is 'Queue'
+
+  _object_is_exchange:(obj)->
+    return obj?.constructor?.name is 'Excha'
+
 
 exports.AMQPBase = exports.AmqpBase = AmqpBase
