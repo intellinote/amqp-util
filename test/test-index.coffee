@@ -19,12 +19,6 @@ describe "index",->
     index.AMQPJSONConsumer.should.exist
     done()
 
-  it "exports util classes", (done)->
-    index.util.BaseApp.should.exist
-    index.util.BaseConsumerApp.should.exist
-    index.util.BaseProducerApp.should.exist
-    done()
-
   it "exports cli", (done)->
     index.app.AMQPCLI.should.exist
     done()
