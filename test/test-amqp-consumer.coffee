@@ -254,7 +254,7 @@ describe 'AMQPConsumer (new methods)',->
               @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
               @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
-describe 'AMQPConsumer (old methods)',->
+describe '[DEPRECATED] AMQPConsumer (old methods)',->
 
   beforeEach (done)=>
     @connection = amqp.createConnection({url:TEST_BROKER})
