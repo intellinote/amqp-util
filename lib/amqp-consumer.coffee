@@ -105,7 +105,8 @@ class AMQPConsumer
     return @queues_by_name?[@get_queue_name_for_subscription_tag(subscription_tag)]
 
 
-  # Subscribes the given `message_handler` to the specified queue.
+  # Subscribes the given `message_handler` to the specified queue, creating a
+  # new queue if necessary.
   #
   # If the queue does not already exist we will attempt to create it.
   #
@@ -147,8 +148,8 @@ class AMQPConsumer
       bind_pattern = exchange_name
       exchange_name = null
     # validate args
-    unless queue_or_queue_name? and message_handler?
-      err = new Error("queue and message hander are required here.")
+    unless message_handler?
+      err = new Error("message hander is required here.")
       if callback?
         callback err
       else
