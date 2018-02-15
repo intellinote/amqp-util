@@ -6,8 +6,13 @@ process    = require 'process'
 # An AMQP message consumer.
 class AMQPConsumer
 
+  @deprecation_warning_shown: false
+
   constructor:(args...)->
     if args? and args.length > 0
+      unless AMQPConsumer.deprecation_warning_shown
+        console.error "WARNING: Passing arguments to the AmqpConsumer constructor is deprecated. Please use the new API."
+        AMQPConsumer.deprecation_warning_shown = true
       @old_connect(args...)
 
 
@@ -325,6 +330,9 @@ class AMQPConsumer
   #  - `callback` is an optional function that will be invoked once the consumer
   #    is ready for use.
   old_connect:(args...)=>
+    unless AMQPConsumer.deprecation_warning_shown
+      console.error "WARNING: The AmqpConsumer.old_connect method is deprecated. Please use the new API."
+      AMQPConsumer.deprecation_warning_shown = true
     # Parse out the method parameters, allowing optional values.
     connection = args.shift()
     if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
@@ -371,6 +379,9 @@ class AMQPConsumer
   # be bound to some exchange.
   #
   old_subscribe:(args...)=>  # args:= exchange_name,pattern,subscribe_options,callback,done
+    unless AMQPConsumer.deprecation_warning_shown
+      console.error "WARNING: The AmqpConsumer.old_subscribe method is deprecated. Please use the new API."
+      AMQPConsumer.deprecation_warning_shown = true
     if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
       exchange_name = args.shift()
     if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
@@ -398,11 +409,17 @@ class AMQPConsumer
     )
 
   old_bind:(exchange_name,pattern,callback)=>
+    unless AMQPConsumer.deprecation_warning_shown
+      console.error "WARNING: The AmqpConsumer.old_bind method is deprecated. Please use the new API."
+      AMQPConsumer.deprecation_warning_shown = true
     @queue.once 'queueBindOk', ()=>callback()
     @queue.bind(exchange_name,pattern)
 
   # **unsubscribe** - *stop listening for incoming messages.*
   old_unsubscribe:(callback)=>
+    unless AMQPConsumer.deprecation_warning_shown
+      console.error "WARNING: The AmqpConsumer.old_unsubscribe method is deprecated. Please use the new API."
+      AMQPConsumer.deprecation_warning_shown = true
     try
       @queue.unsubscribe(@subscription_tag).addCallback ()=>
         @subscription_tag = null
@@ -474,9 +491,9 @@ class AMQPStringConsumer extends AMQPConsumer
     return msg
 
 # The `AMQPConsumer`, `AMQPStringConsumer` and `AMQPJSONConsumer` types are exported.
-exports.AMQPConsumer       = exports.AmqpConsumer = AMQPConsumer
+exports.AMQPConsumer       = exports.AmqpConsumer       = AMQPConsumer
 exports.AMQPStringConsumer = exports.AmqpStringConsumer = AMQPStringConsumer
-exports.AMQPJSONConsumer  = exports.AmqpJsonConsumer = AMQPConsumer # Note that `node-amqp` already handles the object-to-JSON case, but we'll publish a JSONConsumer for consistency.
+exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AMQPConsumer # Note that `node-amqp` already handles the object-to-JSON case, but we'll publish a JSONConsumer for consistency.
 
 #
 # When loaded directly, use `AMQPConsumer` to listen for messages.
