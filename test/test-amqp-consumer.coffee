@@ -7,7 +7,7 @@ HOMEDIR               = path.join(__dirname,'..')
 LIB_COV               = path.join(HOMEDIR,'lib-cov')
 LIB                   = path.join(HOMEDIR,'lib')
 LIB_DIR               = if fs.existsSync(LIB_COV) then LIB_COV else LIB
-AMQPConsumer          = require(path.join(LIB_DIR,'amqp-consumer')).AMQPConsumer
+AmqpConsumer          = require(path.join(LIB_DIR,'amqp-consumer')).AmqpConsumer
 AMQPJSONConsumer      = require(path.join(LIB_DIR,'amqp-consumer')).AMQPJSONConsumer
 AMQPStringConsumer    = require(path.join(LIB_DIR,'amqp-consumer')).AMQPStringConsumer
 config                = require('inote-util').config.init({},{NODE_ENV:'unit-testing'})
@@ -20,7 +20,7 @@ TEST_EXCHANGE_OPTIONS = config.get 'amqp:unit-test:exchange-options'
 TEST_ROUTING_KEY      = config.get 'amqp:unit-test:routing-key'
 
 
-describe 'AMQPConsumer (new methods)',->
+describe 'AmqpConsumer (new methods)',->
 
   beforeEach (done)=>
     @connection = amqp.createConnection({url:TEST_BROKER})
@@ -37,7 +37,7 @@ describe 'AMQPConsumer (new methods)',->
 
   it 'can accept published messages',(done)=>
     received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
@@ -62,7 +62,7 @@ describe 'AMQPConsumer (new methods)',->
 
   it 'allows subscription options in subscribe call',(done)=>
     received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
@@ -86,7 +86,7 @@ describe 'AMQPConsumer (new methods)',->
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
   it 'can accept a JSON-valued message as a JSON object',(done)=>
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
@@ -106,7 +106,7 @@ describe 'AMQPConsumer (new methods)',->
         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
 
   it 'AMQPJSONConsumer can accept a JSON-valued message as a JSON object',(done)=>
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
@@ -164,7 +164,7 @@ describe 'AMQPConsumer (new methods)',->
   it 'can create multiple subscription channels on top of a single queue and single connection (create-queue+subscribe-to-queue case)',(done)=>
     handler1_received_count = 0
     handler2_received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag1 = null
     subscription_tag2 = null
     amqpc.connect TEST_BROKER, (err)=>
@@ -208,7 +208,7 @@ describe 'AMQPConsumer (new methods)',->
   it 'can create multiple subscription channels on top of a single queue and single connection (create-queue-during-subscribe case)',(done)=>
     handler1_received_count = 0
     handler2_received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag1 = null
     subscription_tag2 = null
     amqpc.connect TEST_BROKER, (err)=>
@@ -258,7 +258,7 @@ describe 'AMQPConsumer (new methods)',->
   it 'can create multiple queues on top of a single connection (create-queue+subscribe-to-queue case)', (done)=>
     handler1_received_count = 0
     handler2_received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag1 = null
     subscription_tag2 = null
     handler1_done = false
@@ -308,7 +308,7 @@ describe 'AMQPConsumer (new methods)',->
   it 'can create multiple queues on top of a single connection (create-queue-during-subscribe case)',(done)=>
     handler1_received_count = 0
     handler2_received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag1 = null
     subscription_tag2 = null
     handler1_done = false
@@ -362,7 +362,7 @@ describe 'AMQPConsumer (new methods)',->
   it 'can create multiple queues on top of a single connection (create-queue-during-subscribe with null name case)',(done)=>
     handler1_received_count = 0
     handler2_received_count = 0
-    amqpc = new AMQPConsumer()
+    amqpc = new AmqpConsumer()
     subscription_tag1 = null
     subscription_tag2 = null
     handler1_done = false
@@ -411,7 +411,7 @@ describe 'AMQPConsumer (new methods)',->
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
-# describe '[DEPRECATED] AMQPConsumer (old methods)',->
+# describe '[DEPRECATED] AmqpConsumer (old methods)',->
 #
 #   beforeEach (done)=>
 #     @connection = amqp.createConnection({url:TEST_BROKER})
@@ -428,7 +428,7 @@ describe 'AMQPConsumer (new methods)',->
 #
 #   it 'can accept published messages',(done)=>
 #     received_count = 0
-#     amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       handler = (message,headers,info)=>
 #         received_count += 1
 #         message.data.toString().should.equal "my-test-message-#{received_count}"
@@ -444,7 +444,7 @@ describe 'AMQPConsumer (new methods)',->
 #
 #   it 'supports optional arguments in the constructor',(done)=>
 #     received_count = 0
-#     amqpc = new AMQPConsumer TEST_BROKER, TEST_QUEUE, ()=>
+#     amqpc = new AmqpConsumer TEST_BROKER, TEST_QUEUE, ()=>
 #       handler = (message,headers,info)=>
 #         received_count += 1
 #         message.data.toString().should.equal "my-test-message-#{received_count}"
@@ -460,7 +460,7 @@ describe 'AMQPConsumer (new methods)',->
 #
 #   it 'can defer connection to the message broker',(done)=>
 #     received_count = 0
-#     amqpc = new AMQPConsumer()
+#     amqpc = new AmqpConsumer()
 #     amqpc.old_connect TEST_BROKER, TEST_QUEUE, ()=>
 #       handler = (message,headers,info)=>
 #         received_count += 1
@@ -479,7 +479,7 @@ describe 'AMQPConsumer (new methods)',->
 #     queue = @connection.queue TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       queue.once 'queueBindOk', ()=>
 #         received_count = 0
-#         amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#         amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #           handler = (message,headers,info)=>
 #             received_count += 1
 #             message.data.toString().should.equal "my-test-message-#{received_count}"
@@ -500,7 +500,7 @@ describe 'AMQPConsumer (new methods)',->
 #     queue = @connection.queue TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       queue.once 'queueBindOk', ()=>
 #         received_count = 0
-#         amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#         amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #           handler = (message,headers,info)=>
 #             received_count += 1
 #             message.data.toString().should.equal "my-test-message-#{received_count}"
@@ -517,7 +517,7 @@ describe 'AMQPConsumer (new methods)',->
 #       queue.bind(TEST_EXCHANGE,TEST_ROUTING_KEY)
 #
 #   it 'can accept a JSON-valued message as a JSON object',(done)=>
-#     amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       handler = (message,headers,info)->
 #         message.foo.should.equal 'bar'
 #         message.a.should.equal 1
@@ -528,7 +528,7 @@ describe 'AMQPConsumer (new methods)',->
 #         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
 #
 #   it 'passes raw message from node-amqp to message handler',(done)=>
-#     amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       handler = (message,headers,info,raw)->
 #         message.foo.should.equal 'bar'
 #         message.a.should.equal 1
@@ -540,7 +540,7 @@ describe 'AMQPConsumer (new methods)',->
 #         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
 #
 #   it 'supports a payload converter for transforming messages before they are consumed',(done)=>
-#     amqpc = new AMQPConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
+#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       amqpc.message_converter = (message)->message.data.toString().toUpperCase()
 #       handler = (message,headers,info)->
 #         message.should.equal "THE QUICK BROWN FOX JUMPED."
@@ -563,7 +563,7 @@ describe 'AMQPConsumer (new methods)',->
 #   it 'AMQPStringConsumer can accept a Buffer-valued message as a String',(done)=>
 #     amqpc = new AMQPStringConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
 #       handler = (message,headers,info)->
-#         message.should.equal "The quick brown fox jumped." #note that in the AMQPConsumer case, message.data.toString() would be needed instead
+#         message.should.equal "The quick brown fox jumped." #note that in the AmqpConsumer case, message.data.toString() would be needed instead
 #         amqpc.old_unsubscribe ()->
 #           done()
 #       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>

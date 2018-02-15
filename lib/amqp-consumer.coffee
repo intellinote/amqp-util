@@ -3,6 +3,18 @@ RandomUtil = require('inote-util').RandomUtil
 AsyncUtil  = require('inote-util').AsyncUtil
 process    = require 'process'
 
+class AMQPBase
+
+  @deprecation_warning_shown: false
+  @always_show_deprecation_warning: false
+
+  constructor:(args...)->
+    if args? and args.length > 0
+      if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
+        console.error "WARNING: Passing arguments to the AmqpConsumer constructor is deprecated. Please use the new API."
+        AmqpConsumer.deprecation_warning_shown = true
+      @old_connect(args...)
+
 # An AMQP message consumer.
 #
 # This class wraps a single connection to an AMQP message broker.
@@ -18,7 +30,7 @@ process    = require 'process'
 # bind_pattern = "#.#"
 #
 # # create a new consumer instance and connect to the broker:
-# consumer = new AMQPConsumer()
+# consumer = new AmqpConsumer()
 # consumer.connect broker_url, (err)->
 #  if err?
 #    console.error err
@@ -55,16 +67,16 @@ process    = require 'process'
 # consumer.disconnect(()->undefined)
 # ```
 #
-class AMQPConsumer
+class AmqpConsumer
 
   @deprecation_warning_shown: false
   @always_show_deprecation_warning: false
 
   constructor:(args...)->
     if args? and args.length > 0
-      if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+      if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
         console.error "WARNING: Passing arguments to the AmqpConsumer constructor is deprecated. Please use the new API."
-        AMQPConsumer.deprecation_warning_shown = true
+        AmqpConsumer.deprecation_warning_shown = true
       @old_connect(args...)
 
   # **message_converter** - *a utility method used to convert the message before consuming.*
@@ -80,7 +92,7 @@ class AMQPConsumer
 
   # Establish a new connection to the specified broker.
   #
-  # Note that each `AMQPConsumer` instance can only have one connection at a time.
+  # Note that each `AmqpConsumer` instance can only have one connection at a time.
   #
   # Arguments:
   #   * `broker_url` - string-type broker URL (e.g., `amqp://guest:guest@localhost:5672`), optional
@@ -519,9 +531,9 @@ class AMQPConsumer
   # #  - `callback` is an optional function that will be invoked once the consumer
   # #    is ready for use.
   # old_connect:(args...)=>
-  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #   if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
   #     console.error "WARNING: The AmqpConsumer.old_connect method is deprecated. Please use the new API."
-  #     AMQPConsumer.deprecation_warning_shown = true
+  #     AmqpConsumer.deprecation_warning_shown = true
   #   # Parse out the method parameters, allowing optional values.
   #   connection = args.shift()
   #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'object')
@@ -568,9 +580,9 @@ class AMQPConsumer
   # # be bound to some exchange.
   # #
   # old_subscribe:(args...)=>  # args:= exchange_name,pattern,subscribe_options,callback,done
-  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #   if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
   #     console.error "WARNING: The AmqpConsumer.old_subscribe method is deprecated. Please use the new API."
-  #     AMQPConsumer.deprecation_warning_shown = true
+  #     AmqpConsumer.deprecation_warning_shown = true
   #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
   #     exchange_name = args.shift()
   #   if args.length > 0 and ((not args[0]?) or typeof args[0] is 'string')
@@ -598,17 +610,17 @@ class AMQPConsumer
   #   )
   #
   # old_bind:(exchange_name,pattern,callback)=>
-  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #   if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
   #     console.error "WARNING: The AmqpConsumer.old_bind method is deprecated. Please use the new API."
-  #     AMQPConsumer.deprecation_warning_shown = true
+  #     AmqpConsumer.deprecation_warning_shown = true
   #   @queue.once 'queueBindOk', ()=>callback()
   #   @queue.bind(exchange_name,pattern)
   #
   # # **unsubscribe** - *stop listening for incoming messages.*
   # old_unsubscribe:(callback)=>
-  #   if AMQPConsumer.always_show_deprecation_warning or not AMQPConsumer.deprecation_warning_shown
+  #   if AmqpConsumer.always_show_deprecation_warning or not AmqpConsumer.deprecation_warning_shown
   #     console.error "WARNING: The AmqpConsumer.old_unsubscribe method is deprecated. Please use the new API."
-  #     AMQPConsumer.deprecation_warning_shown = true
+  #     AmqpConsumer.deprecation_warning_shown = true
   #   try
   #     @queue.unsubscribe(@subscription_tag).addCallback ()=>
   #       @subscription_tag = null
@@ -622,17 +634,17 @@ class AMQPConsumer
 #      ██ ██    ██ ██   ██ ██      ██      ██   ██      ██      ██ ██           ██
 # ███████  ██████  ██████   ██████ ███████ ██   ██ ███████ ███████ ███████ ███████
 
-# **AMQPStringConsumer** - *an `AMQPConsumer` that automatically converts inbound messages from Buffers into Strings.*
-class AMQPStringConsumer extends AMQPConsumer
+# **AmqpStringConsumer** - *an `AmqpConsumer` that automatically converts inbound messages from Buffers into Strings.*
+class AmqpStringConsumer extends AmqpConsumer
 
-  # **constructor** - *create a new `AMQPStringConsumer`.*
+  # **constructor** - *create a new `AmqpStringConsumer`.*
   #
   # Accepts 0 to 7 parameters:
   #
   #  - `encoding` - the encoding to use when converting from bytes to characters.
   #  - others - when present, passed to `connect`
   #
-  # When invoked with fewer than two, the `AMQPConsumer` instance is created
+  # When invoked with fewer than two, the `AmqpConsumer` instance is created
   # but no connection is established.  (A connection can be established later
   # by calling `connect`.)
   #
@@ -665,10 +677,10 @@ class AMQPStringConsumer extends AMQPConsumer
 # ██       ██ ██  ██      ██    ██ ██   ██    ██         ██
 # ███████ ██   ██ ██       ██████  ██   ██    ██    ███████
 
-# The `AMQPConsumer`, `AMQPStringConsumer` and `AMQPJSONConsumer` types are exported.
-exports.AMQPConsumer       = exports.AmqpConsumer       = AMQPConsumer
-exports.AMQPStringConsumer = exports.AmqpStringConsumer = AMQPStringConsumer
-exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AMQPConsumer # Note that `node-amqp` already handles the object-to-JSON case, but we'll publish a JSONConsumer for consistency.
+# The `AmqpConsumer`, `AmqpStringConsumer` and `AMQPJSONConsumer` types are exported.
+exports.AMQPConsumer       = exports.AmqpConsumer       = AmqpConsumer
+exports.AMQPStringConsumer = exports.AmqpStringConsumer = AmqpStringConsumer
+exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AmqpConsumer # Note that `node-amqp` already handles the object-to-JSON case, but we'll publish a JSONConsumer for consistency.
 
 
 
@@ -679,7 +691,7 @@ exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AMQPConsumer # Note th
 # ██      ██ ██   ██ ██ ██   ████
 
 #
-# When loaded directly, use `AMQPConsumer` to listen for messages.
+# When loaded directly, use `AmqpConsumer` to listen for messages.
 #
 # Accepts up to 2 command line parameters:
 #  - the broker URI
@@ -688,22 +700,22 @@ exports.AMQPJSONConsumer   = exports.AmqpJsonConsumer   = AMQPConsumer # Note th
 # if require.main is module
 #   broker = (process.argv?[2]) ? 'amqp://guest:guest@localhost:5672'
 #   queue  = (process.argv?[3]) ? 'namqp-demo-queue'
-#   consumer = new AMQPConsumer broker, null, queue, {}, ()=>
+#   consumer = new AmqpConsumer broker, null, queue, {}, ()=>
 #     consumer.subscribe console.log, ()=>
-#       console.log "AMQPConsumer connected to broker at \"#{broker}\" and now listening for messages on queue \"#{queue}\"."
+#       console.log "AmqpConsumer connected to broker at \"#{broker}\" and now listening for messages on queue \"#{queue}\"."
 #       console.log "Press Ctrl-C to exit."
 #       consumer.main()
 
 if require.main is module
   broker_url = (process.argv?[2]) ? 'amqp://guest:guest@localhost:5672'
   queue_name  = (process.argv?[3]) ? undefined #'namqp-demo-queue'
-  consumer = new AMQPConsumer()
+  consumer = new AmqpConsumer()
   consumer.connect broker_url, (err, x...)=>
     consumer.queue queue_name, null, "#.#", (err, queue, queue_name, x...)=>
       consumer.queue queue_name, null, "#.#", (err, queue, queue_name, x...)=>
         if queue? and not err?
           consumer.subscribe_to_queue queue, console.log, ()=>
-            console.log "AMQPConsumer connected to broker at \"#{broker_url}\" and now listening for messages on queue \"#{queue_name}\"."
+            console.log "AmqpConsumer connected to broker at \"#{broker_url}\" and now listening for messages on queue \"#{queue_name}\"."
             console.log "Press Ctrl-C to exit."
             process.on 'SIGINT', ()->
               console.log 'Received kill signal (SIGINT), shutting down.'
