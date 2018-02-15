@@ -15,8 +15,8 @@ AmqpBase   = require(path.join(LIB_DIR, 'amqp-base')).AmqpBase
 
 class AmqpProducer extends AmqpBase
 
-  constructor:()->
-    super()
+  constructor:(args...)->
+    super(args...)
 
   # **default_routing_key** - *the default key value to use in `publish`.*
   default_routing_key: null

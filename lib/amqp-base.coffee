@@ -2,8 +2,9 @@ amqp       = require 'amqp'
 
 class AmqpBase
 
-  constructor:()->
-    undefined
+  constructor:(@connection)->
+    if @connection?
+      @_on_connect()
 
   # Establish a new connection to the specified broker.
   #

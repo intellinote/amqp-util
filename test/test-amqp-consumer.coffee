@@ -41,7 +41,7 @@ describe 'AmqpConsumer',->
     subscription_tag = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
-      amqpc.create_queue TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
+      amqpc.get_queue TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
         assert.ok not err?, err
         handler = (message,headers,info)=>
           received_count += 1
@@ -49,7 +49,11 @@ describe 'AmqpConsumer',->
           if received_count is 3
             amqpc.unsubscribe_from_queue subscription_tag, (err)->
               assert.ok not err?, err
-              done()
+              amqpc.unbind_queue_from_exchange TEST_QUEUE, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
+                assert.ok not err?, err
+                amqpc.destroy_queue TEST_QUEUE, ()=>
+                  amqpc.disconnect ()=>
+                    done()
           else
             received_count.should.not.be.above 3
         amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
@@ -64,6 +68,7 @@ describe 'AmqpConsumer',->
     received_count = 0
     amqpc = new AmqpConsumer()
     subscription_tag = null
+    the_queue = null
     amqpc.connect TEST_BROKER, (err)=>
       assert.ok not err?, err
       amqpc.create_queue TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
@@ -74,12 +79,14 @@ describe 'AmqpConsumer',->
           if received_count is 3
             amqpc.unsubscribe_from_queue subscription_tag, (err)->
               assert.ok not err?, err
-              done()
+              amqpc.destroy_queue the_queue, ()=>
+                done()
           else
             received_count.should.not.be.above 3
         amqpc.subscribe_to_queue TEST_QUEUE, {exclusive:true}, handler, (err, queue, queue_name, st)=>
           assert.ok not err?, err
           assert.ok st?
+          the_queue = queue
           subscription_tag = st
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
@@ -410,161 +417,3 @@ describe 'AmqpConsumer',->
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-
-# describe '[DEPRECATED] AmqpConsumer (old methods)',->
-#
-#   beforeEach (done)=>
-#     @connection = amqp.createConnection({url:TEST_BROKER})
-#     @connection.once 'ready', ()=>
-#       @exchange = @connection?.exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, ()=>
-#         done()
-#
-#   afterEach (done)=>
-#     @exchange?.destroy(false)
-#     @exchange = null
-#     @connection?.end()
-#     @connection = null
-#     done()
-#
-#   it 'can accept published messages',(done)=>
-#     received_count = 0
-#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       handler = (message,headers,info)=>
-#         received_count += 1
-#         message.data.toString().should.equal "my-test-message-#{received_count}"
-#         if received_count is 3
-#           amqpc.old_unsubscribe ()->
-#             done()
-#         else
-#           received_count.should.not.be.above 3
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-#
-#   it 'supports optional arguments in the constructor',(done)=>
-#     received_count = 0
-#     amqpc = new AmqpConsumer TEST_BROKER, TEST_QUEUE, ()=>
-#       handler = (message,headers,info)=>
-#         received_count += 1
-#         message.data.toString().should.equal "my-test-message-#{received_count}"
-#         if received_count is 3
-#           amqpc.old_unsubscribe ()->
-#             done()
-#         else
-#           received_count.should.not.be.above 3
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-#
-#   it 'can defer connection to the message broker',(done)=>
-#     received_count = 0
-#     amqpc = new AmqpConsumer()
-#     amqpc.old_connect TEST_BROKER, TEST_QUEUE, ()=>
-#       handler = (message,headers,info)=>
-#         received_count += 1
-#         message.data.toString().should.equal "my-test-message-#{received_count}"
-#         if received_count is 3
-#           amqpc.old_unsubscribe ()->
-#             done()
-#         else
-#           received_count.should.not.be.above 3
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
-#         @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-#
-#   it 'can use a pre-established queue without specifying an exchange',(done)=>
-#     queue = @connection.queue TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       queue.once 'queueBindOk', ()=>
-#         received_count = 0
-#         amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#           handler = (message,headers,info)=>
-#             received_count += 1
-#             message.data.toString().should.equal "my-test-message-#{received_count}"
-#             if received_count is 3
-#               amqpc.old_unsubscribe ()->
-#                 queue.destroy()
-#                 done()
-#             else
-#               received_count.should.not.be.above 3
-#           amqpc.old_subscribe handler, ()=>
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-#       queue.bind(TEST_EXCHANGE,TEST_ROUTING_KEY)
-#
-#
-#   it 'accepts "subscribe options" in subscribe method',(done)=>
-#     queue = @connection.queue TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       queue.once 'queueBindOk', ()=>
-#         received_count = 0
-#         amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#           handler = (message,headers,info)=>
-#             received_count += 1
-#             message.data.toString().should.equal "my-test-message-#{received_count}"
-#             if received_count is 3
-#               amqpc.old_unsubscribe ()->
-#                 queue.destroy()
-#                 done()
-#             else
-#               received_count.should.not.be.above 3
-#           amqpc.old_subscribe {exclusive:true}, handler, ()=>
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
-#             @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
-#       queue.bind(TEST_EXCHANGE,TEST_ROUTING_KEY)
-#
-#   it 'can accept a JSON-valued message as a JSON object',(done)=>
-#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       handler = (message,headers,info)->
-#         message.foo.should.equal 'bar'
-#         message.a.should.equal 1
-#         info.contentType.should.equal 'application/json'
-#         amqpc.old_unsubscribe ()->
-#           done()
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
-#
-#   it 'passes raw message from node-amqp to message handler',(done)=>
-#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       handler = (message,headers,info,raw)->
-#         message.foo.should.equal 'bar'
-#         message.a.should.equal 1
-#         info.contentType.should.equal 'application/json'
-#         should.exist raw
-#         amqpc.old_unsubscribe ()->
-#           done()
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
-#
-#   it 'supports a payload converter for transforming messages before they are consumed',(done)=>
-#     amqpc = new AmqpConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       amqpc.message_converter = (message)->message.data.toString().toUpperCase()
-#       handler = (message,headers,info)->
-#         message.should.equal "THE QUICK BROWN FOX JUMPED."
-#         amqpc.old_unsubscribe ()->
-#           done()
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, "the quick brown fox jumped."
-#
-#   it 'AMQPJSONConsumer accept a JSON-valued message as a JSON object',(done)=>
-#     amqpc = new AMQPJSONConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       handler = (message,headers,info)->
-#         message.foo.should.equal 'bar'
-#         message.a.should.equal 1
-#         info.contentType.should.equal 'application/json'
-#         amqpc.old_unsubscribe ()->
-#           done()
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, { foo:'bar', a:1 }
-#
-#   it 'AMQPStringConsumer can accept a Buffer-valued message as a String',(done)=>
-#     amqpc = new AMQPStringConsumer TEST_BROKER, null, TEST_QUEUE, TEST_QUEUE_OPTIONS, ()=>
-#       handler = (message,headers,info)->
-#         message.should.equal "The quick brown fox jumped." #note that in the AmqpConsumer case, message.data.toString() would be needed instead
-#         amqpc.old_unsubscribe ()->
-#           done()
-#       amqpc.old_subscribe TEST_EXCHANGE, TEST_ROUTING_KEY, handler, ()=>
-#         @exchange.publish TEST_ROUTING_KEY, "The quick brown fox jumped."

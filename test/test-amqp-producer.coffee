@@ -36,14 +36,14 @@ describe 'AMQPProducer',->
 
   it "can publish messages",(done)=>
     # Thanks to the magic of node.js callbacks, this test case reads backwards.
-
+    amqpp = null
     # In a moment we'll subscribe to messages from the Queue.
     # Once our subscription is set up, we will publish a couple of messages.
     @queue.once 'basicConsumeOk',()=>
       amqpp = new AMQPProducer()
       amqpp.connect TEST_BROKER, (err)=>
         assert.ok not err?, err
-        amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
+        amqpp.get_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
           assert.ok not err?, err
           amqpp.publish TEST_EXCHANGE, {body:"test-message"}, TEST_ROUTING_KEY, (err)->
             should.not.exist err
@@ -63,7 +63,8 @@ describe 'AMQPProducer',->
         if received.length is 2
           received[0].message.body.should.equal 'test-message'
           received[1].message.body.should.equal 'test-message'
-          done()
+          amqpp.disconnect ()=>
+            done()
         else
           received.length.should.be.above 0
           received.length.should.not.be.above 2
