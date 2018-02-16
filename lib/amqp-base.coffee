@@ -47,18 +47,18 @@ class AmqpBase
       if @connection?
         callback? new Error("Already connected; please disconnect first.")
       else
-        @_on_connect ()=>
-          # create the connection
-          called_back = false
-          @connection = amqp.createConnection connection_options, impl_options
-          @connection.once 'error', (err)=>
-            unless called_back
-              called_back = true
-              callback? err, undefined
-              callback = undefined
-          if error_handler?
-            @connection.on 'error', error_handler
-          @connection.once 'ready', ()=>
+        # create the connection
+        called_back = false
+        @connection = amqp.createConnection connection_options, impl_options
+        @connection.once 'error', (err)=>
+          unless called_back
+            called_back = true
+            callback? err, undefined
+            callback = undefined
+        if error_handler?
+          @connection.on 'error', error_handler
+        @connection.once 'ready', ()=>
+          @_on_connect ()->
             unless called_back
               called_back = true
               callback? undefined, @connection
@@ -73,15 +73,15 @@ class AmqpBase
          callback?(undefined, true)
        return true
     else
-       @connection = undefined
        @_on_disconnect ()=>
+         @connection = undefined
          callback?(undefined, false)
        return false
 
   # hook for subclasses to clear or set state on connect
   _on_connect:(callback)->callback?()
 
-  # hook for subclasses to clear or set state on connect
+  # hook for subclasses to clear or set state on disconnect
   _on_disconnect:(callback)->callback?()
 
   _object_is_queue:(obj)->
