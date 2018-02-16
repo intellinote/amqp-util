@@ -24,6 +24,13 @@
 
 <!-- tocstop -->
 
+## PLEASE NOTE:
+
+Version 2.x of `amqp-util` changes some parts of the API but this README file currently describes the amqp-util v1.x.
+
+In the meantime please see the comments in `amqp-consumer.coffee`, `amqp-producer.coffee` and `amqp-base.coffee` for details and examples for the new API.
+
+
 ## Installing
 
 ### Via npm
