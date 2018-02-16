@@ -64,6 +64,48 @@ describe 'AmqpConsumer',->
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
 
+  it 'can resolve consumerTag name changes',(done)=>
+    received_count = 0
+    amqpc = new AmqpConsumer()
+    subscription_tag = null
+    fake_tag_found = false
+    amqpc.connect TEST_BROKER, (err)=>
+      assert.ok not err?, err
+      amqpc.get_queue TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
+        assert.ok not err?, err
+        handler = (message,headers,info)=>
+          received_count += 1
+          message.data.toString().should.equal "my-test-message-#{received_count}"
+          if received_count is 3
+            amqpc.unsubscribe_from_queue subscription_tag, (err)->
+              assert.ok not err?, err
+              assert fake_tag_found
+              amqpc.unbind_queue_from_exchange TEST_QUEUE, TEST_EXCHANGE, TEST_ROUTING_KEY, (err)=>
+                assert.ok not err?, err
+                amqpc.destroy_queue TEST_QUEUE, ()=>
+                  amqpc.disconnect ()=>
+                    done()
+          else
+            received_count.should.not.be.above 3
+        amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
+          assert.ok not err?, err
+          assert.ok st?
+          subscription_tag = st
+          new_tag = "the-new-consumer-tag-#{Date.now()}"
+          # override queue.unsubscribe to confirm the that mock-renamed tag is passed
+          queue._old_unsubscribe = queue.unsubscribe
+          queue.unsubscribe = (tag_name, tail...)=>
+            assert.equal tag_name, new_tag
+            fake_tag_found = true
+            tag_name = subscription_tag
+            queue._old_unsubscribe tag_name, tail...
+          #
+          amqpc.connection.emit "tag.change", {oldConsumerTag:subscription_tag,consumerTag:new_tag}
+          assert.equal amqpc._resolve_subscription_tag_alias(subscription_tag), new_tag
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
+          @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
+
   it 'allows subscription options in subscribe call',(done)=>
     received_count = 0
     amqpc = new AmqpConsumer()

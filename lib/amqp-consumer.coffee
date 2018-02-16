@@ -408,7 +408,7 @@ class AmqpConsumer extends AmqpBase
       if @subscription_tag_aliases?
         @subscription_tag_aliases[event.oldConsumerTag] = event.consumerTag
       if @queue_names_by_subscription_tag?
-        @subscription_tag_aliases[event.consumerTag] = @queue_names_by_subscription_tag[event.oldConsumerTag]
+        @queue_names_by_subscription_tag[event.consumerTag] = @queue_names_by_subscription_tag[event.oldConsumerTag]
 
   _on_disconnect:(callback)=>
     if @connection?.removeListener?
