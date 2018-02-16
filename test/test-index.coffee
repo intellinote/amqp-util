@@ -29,6 +29,6 @@ describe "index",->
     done()
 
   it "exports AmqpBase", (done)->
-    index.AmqpBase.should.exist
+    index.AMQPBase.should.exist
     index.AmqpBase.should.exist
     done()
