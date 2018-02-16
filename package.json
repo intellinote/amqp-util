@@ -8,7 +8,6 @@
   "author"      : "Intellinote <https://www.intellinote.net/>",
   "dependencies": {
     "amqp"            : "^0.2",
-    "forever"         : "^0.15",
     "inote-util"      : "^1.14.2",
     "optimist"        : "^0.6"
   },
