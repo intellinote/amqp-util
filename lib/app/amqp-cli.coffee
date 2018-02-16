@@ -372,4 +372,4 @@ if require.main is module
   cli = new AMQPCLI()
   cli.main()
 
-exports.AMQPCLI = AMQPCLI
+exports.AMQPCLI = exports.AmqpCli = AMQPCLI
