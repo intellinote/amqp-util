@@ -18,6 +18,7 @@ LIB_DIR   = if fs.existsSync(LIB_COV) then LIB_COV else LIB
 # `sources` enumerates the files from which we'll load objects to export.
 
 sources = [
+  'amqp-base'
   'amqp-consumer'
   'amqp-producer'
   [ 'app',  'amqp-cli' ]

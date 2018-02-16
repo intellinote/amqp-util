@@ -8,10 +8,13 @@ LIB_DIR   = if fs.existsSync(LIB_COV) then LIB_COV else LIB
 amqp       = require 'amqp'
 RandomUtil = require('inote-util').RandomUtil
 AsyncUtil  = require('inote-util').AsyncUtil
+LogUtil    = require('inote-util').LogUtil
 process    = require 'process'
 ################################################################################
 AmqpBase   = require(path.join(LIB_DIR, 'amqp-base')).AmqpBase
 ################################################################################
+DEBUG      = /(^|,)((all)|(amqp-?util)|(amqp-?producer))(,|$)/i.test process.env.NODE_DEBUG # add `amqp-util` or `amqp-producer` to NODE_DEBUG to enable debugging output
+LogUtil    = LogUtil.init({debug:DEBUG, prefix: "AmqpProducer:"})
 
 class AmqpProducer extends AmqpBase
 
@@ -61,11 +64,14 @@ class AmqpProducer extends AmqpBase
       callback? new Error("Not connected.")
       return undefined
     else
+      LogUtil.tpdebug "Creating (or fetching) the exchange named `#{exchange_name}`..."
       if @exchanges_by_name[exchange_name]?
+        LogUtil.tpdebug "...found in cache."
         callback?(undefined,@exchanges_by_name[exchange_name],exchange_name,true)
       else
-        called_back = false
+        LogUtil.tpdebug "...not found in cache, creating or fetching from AMQP server..."
         exchange = @connection.exchange exchange_name, exchange_options, (x...)=>
+          LogUtil.tpdebug "...created or fetched."
           exchange.__amqp_util_exchange_name = exchange_name
           @exchanges_by_name[exchange_name] = exchange
           callback?(undefined,exchange,exchange_name,false)
@@ -98,6 +104,7 @@ class AmqpProducer extends AmqpBase
         unless publish_options?
           publish_options = @default_publish_options
         payload = @payload_converter(payload)
+        LogUtil.tpdebug "Publishing a payload of type `#{typeof payload}` to the exchange named `#{exchange_name}` with routing key `#{routing_key}`."
         exchange.publish routing_key, payload, publish_options, (error_occured)=>
           if error_occured
             callback?(error_occured)

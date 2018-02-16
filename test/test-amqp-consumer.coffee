@@ -101,7 +101,7 @@ describe 'AmqpConsumer',->
             queue._old_unsubscribe tag_name, tail...
           #
           amqpc.connection.emit "tag.change", {oldConsumerTag:subscription_tag,consumerTag:new_tag}
-          assert.equal amqpc._resolve_subscription_tag_alias(subscription_tag), new_tag
+          assert.equal amqpc._resolve_subscription_tag_alias(subscription_tag)[0], new_tag
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-1'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-2'
           @exchange.publish TEST_ROUTING_KEY, 'my-test-message-3'
@@ -122,7 +122,8 @@ describe 'AmqpConsumer',->
             amqpc.unsubscribe_from_queue subscription_tag, (err)->
               assert.ok not err?, err
               amqpc.destroy_queue the_queue, ()=>
-                done()
+                amqpc.disconnect ()=>
+                  done()
           else
             received_count.should.not.be.above 3
         amqpc.subscribe_to_queue TEST_QUEUE, {exclusive:true}, handler, (err, queue, queue_name, st)=>
@@ -147,7 +148,8 @@ describe 'AmqpConsumer',->
           info.contentType.should.equal 'application/json'
           should.exist raw
           amqpc.unsubscribe_from_queue subscription_tag, (err)->
-            done()
+            amqpc.disconnect ()=>
+              done()
         amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
           assert.ok not err?, err
           assert.ok st?
@@ -167,7 +169,9 @@ describe 'AmqpConsumer',->
           info.contentType.should.equal 'application/json'
           should.exist raw
           amqpc.unsubscribe_from_queue subscription_tag, (err)->
-            done()
+            assert.ok not err?, err
+            amqpc.disconnect ()=>
+              done()
         amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
           assert.ok not err?, err
           assert.ok st?
@@ -184,7 +188,9 @@ describe 'AmqpConsumer',->
         handler = (message,headers,info, raw)=>
           message.should.equal "The quick brown fox jumped."
           amqpc.unsubscribe_from_queue subscription_tag, (err)->
-            done()
+            assert.ok not err?, err
+            amqpc.disconnect ()=>
+              done()
         amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
           assert.ok not err?, err
           assert.ok st?
@@ -202,7 +208,9 @@ describe 'AmqpConsumer',->
         handler = (message,headers,info, raw)=>
           message.should.equal "THE QUICK BROWN FOX JUMPED."
           amqpc.unsubscribe_from_queue subscription_tag, (err)->
-            done()
+            assert.ok not err?, err
+            amqpc.disconnect ()=>
+              done()
         amqpc.subscribe_to_queue TEST_QUEUE, handler, (err, queue, queue_name, st)=>
           assert.ok not err?, err
           assert.ok st?
@@ -228,7 +236,8 @@ describe 'AmqpConsumer',->
               assert.ok not err?, err
               amqpc.unsubscribe_from_queue subscription_tag2, (err)->
                 assert.ok not err?, err
-                done()
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler1_received_count + handler2_received_count).should.not.be.above 3
         handler2 = (message,headers,info)=>
@@ -238,7 +247,9 @@ describe 'AmqpConsumer',->
             amqpc.unsubscribe_from_queue subscription_tag2, (err)->
               assert.ok not err?, err
               amqpc.unsubscribe_from_queue subscription_tag1, (err)->
-                done()
+                assert.ok not err?, err
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler1_received_count + handler2_received_count).should.not.be.above 3
         amqpc.subscribe_to_queue TEST_QUEUE, handler1, (err, queue, queue_name, st1)=>
@@ -270,7 +281,8 @@ describe 'AmqpConsumer',->
             assert.ok not err?, err
             amqpc.unsubscribe_from_queue subscription_tag2, (err)->
               assert.ok not err?, err
-              done()
+              amqpc.disconnect ()=>
+                done()
         else
           (handler1_received_count + handler2_received_count).should.not.be.above 3
       amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler1, (err, queue1, queue_name1, st1)=>
@@ -287,7 +299,9 @@ describe 'AmqpConsumer',->
             amqpc.unsubscribe_from_queue subscription_tag2, (err)->
               assert.ok not err?, err
               amqpc.unsubscribe_from_queue subscription_tag1, (err)->
-                done()
+                assert.ok not err?, err
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler1_received_count + handler2_received_count).should.not.be.above 3
         amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler2, (err, queue2, queue_name2, st2)=>
@@ -324,7 +338,9 @@ describe 'AmqpConsumer',->
               handler1_done = true
               assert.ok not err?, err
               if handler2_done
-                done()
+                assert.ok not err?, err
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler1_received_count).should.not.be.above 3
         amqpc.subscribe_to_queue TEST_QUEUE, handler1, (err, queue, queue_name, st1)=>
@@ -342,7 +358,8 @@ describe 'AmqpConsumer',->
                   handler2_done = true
                   assert.ok not err?, err
                   if handler1_done
-                    done()
+                    amqpc.disconnect ()=>
+                      done()
               else
                 (handler2_received_count).should.not.be.above 3
             amqpc.subscribe_to_queue TEST_QUEUE_2, handler2, (err, queue, queue_name, st2)=>
@@ -372,7 +389,8 @@ describe 'AmqpConsumer',->
             handler1_done = true
             assert.ok not err?, err
             if handler2_done
-              done()
+              amqpc.disconnect ()=>
+                done()
         else
           (handler1_received_count).should.not.be.above 3
       amqpc.subscribe TEST_QUEUE, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler1, (err, queue1, queue_name1, st1)=>
@@ -390,7 +408,8 @@ describe 'AmqpConsumer',->
               handler2_done = true
               assert.ok not err?, err
               if handler1_done
-                done()
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler2_received_count).should.not.be.above 3
         amqpc.subscribe TEST_QUEUE_2, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler2, (err, queue2, queue_name2, st2)=>
@@ -426,7 +445,8 @@ describe 'AmqpConsumer',->
             handler1_done = true
             assert.ok not err?, err
             if handler2_done
-              done()
+              amqpc.disconnect ()=>
+                done()
         else
           (handler1_received_count).should.not.be.above 3
       amqpc.subscribe undefined, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler1, (err, queue1, queue_name1, st1)=>
@@ -444,7 +464,8 @@ describe 'AmqpConsumer',->
               handler2_done = true
               assert.ok not err?, err
               if handler1_done
-                done()
+                amqpc.disconnect ()=>
+                  done()
           else
             (handler2_received_count).should.not.be.above 3
         amqpc.subscribe undefined, TEST_QUEUE_OPTIONS, TEST_EXCHANGE, TEST_ROUTING_KEY, handler2, (err, queue2, queue_name2, st2)=>

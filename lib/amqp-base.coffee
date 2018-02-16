@@ -1,10 +1,17 @@
 amqp       = require 'amqp'
+LogUtil    = require('inote-util').LogUtil
+DEBUG      = /(^|,)((all)|(amqp-?util)|(amqp-?base))(,|$)/i.test process.env.NODE_DEBUG # add `amqp-util` or `amqp-base` to NODE_DEBUG to enable debugging output
+LogUtil    = LogUtil.init({debug:DEBUG, prefix: "AmqpBase:"})
 
 class AmqpBase
 
   constructor:(@connection)->
     if @connection?
+      LogUtil.tpdebug "Shared connection passed to AmqpBase constructor."
+      @connection_shared = true
       @_on_connect()
+    else
+      @connection_shared = false
 
   # Establish a new connection to the specified broker.
   #
@@ -38,7 +45,7 @@ class AmqpBase
     if broker_url?
       connection_options.url = broker_url
     error_handler ?= (err)->
-      console.error "ERROR:", err
+      LogUtil.tperr "amqp-connection emitted an error:", err
     # check input parameters
     unless connection_options.url?
       callback? new Error("Expected a broker URL value.")
@@ -47,12 +54,14 @@ class AmqpBase
       if @connection?
         callback? new Error("Already connected; please disconnect first.")
       else
+        LogUtil.tpdebug "Connecting to #{broker_url}..."
         # create the connection
         called_back = false
         @connection = amqp.createConnection connection_options, impl_options
         @connection.once 'error', (err)=>
           unless called_back
             called_back = true
+            LogUtil.tpdebug "...encountered error while connecting:", err
             callback? err, undefined
             callback = undefined
         if error_handler?
@@ -61,22 +70,36 @@ class AmqpBase
           @_on_connect ()->
             unless called_back
               called_back = true
+              LogUtil.tpdebug "...successfully connected."
               callback? undefined, @connection
               callback = undefined
     return @connection
 
-  disconnect:(callback)=>
-    if @connection?.disconnect?
-       @_on_disconnect ()=>
-         @connection.disconnect()
-         @connection = undefined
-         callback?(undefined, true)
-       return true
+  disconnect:(force, callback)=>
+    if typeof force is 'function' and not callback?
+      callback = force
+      force = undefined
+    if @connection_shared and not force
+      err = new Error("This class did not create the current connection and hence will not disconnect from it unless `true` is passed as the `force` parameter.")
+      LogUtil.tpdebug "Asked to disconnect an amqp-connection that this class did not create.", err
+      callback(err)
     else
-       @_on_disconnect ()=>
-         @connection = undefined
-         callback?(undefined, false)
-       return false
+      LogUtil.tpdebug "Disconnecting..."
+      if @connection?.disconnect?
+         @_on_disconnect ()=>
+           @connection.disconnect()
+           @connection_shared = false
+           @connection = undefined
+           LogUtil.tpdebug "...disconnected."
+           callback?(undefined, true)
+         return true
+      else
+         @_on_disconnect ()=>
+           @connection_shared = false
+           @connection = undefined
+           LogUtil.tpdebug "...not connected in the first place."
+           callback?(undefined, false)
+         return false
 
   # hook for subclasses to clear or set state on connect
   _on_connect:(callback)->callback?()
@@ -88,7 +111,6 @@ class AmqpBase
     return obj?.constructor?.name is 'Queue'
 
   _object_is_exchange:(obj)->
-    return obj?.constructor?.name is 'Excha'
-
+    return obj?.constructor?.name is 'Exchange'
 
 exports.AMQPBase = exports.AmqpBase = AmqpBase

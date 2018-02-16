@@ -6,6 +6,21 @@
 
 *amqp-util* depends heavily on [*node-amqp*](https://github.com/postwait/node-amqp) (which see). This module provides utilities and base-classes which wrap *node-amqp* in support of common use-cases.
 
+## VERSION NOTE:
+
+Version 2.x of `amqp-util` changes some parts of the API but this README file currently describes the amqp-util v1.x.
+
+In the meantime please see the comments in `amqp-consumer.coffee`, `amqp-producer.coffee` and `amqp-base.coffee` for details and examples for the new API.
+
+---
+
+NOTES:
+
+ * Include `all`, `amqp-util`, `amqp-base`, `amqp-consumer` or `amqp-producer` in the `NODE_DEBUG` environment variable to enable various categories of debugging output. (Case insensitive; the `-` is optional; NODE_DEBUG is treated as a comma-delimited string)
+
+---
+
+
 <!-- toc -->
 
 - [AMQP-UTIL](#amqp-util)

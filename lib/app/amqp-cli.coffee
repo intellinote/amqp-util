@@ -19,7 +19,8 @@
 # ## Imports
 
 #
-amqp = require 'amqp'
+amqp     = require 'amqp'
+optimist = require 'optimist'
 
 # ## Implementation
 
@@ -210,7 +211,7 @@ class AMQPCLI
   # **main** reads the command line parameters and executes the appropriate command.
   main:()->
     # Set up the command line parameters using node-optimist.
-    optimist = require('optimist').options({
+    optimist = optimist.options({
       'h': { alias: 'help', boolean: true, describe: "Show help" }
       'b': { alias: 'broker', default: 'amqp://guest:guest@localhost:5672', describe: "Message broker to connect to" }
       'e.name': { alias: 'exchange.name', describe: "Exchange name." }
@@ -372,4 +373,4 @@ if require.main is module
   cli = new AMQPCLI()
   cli.main()
 
-exports.AMQPCLI = AMQPCLI
+exports.AMQPCLI = exports.AmqpCli = AMQPCLI
