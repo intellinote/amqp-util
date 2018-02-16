@@ -4,7 +4,10 @@ class AmqpBase
 
   constructor:(@connection)->
     if @connection?
+      @connection_shared = true
       @_on_connect()
+    else
+      @connection_shared = false
 
   # Establish a new connection to the specified broker.
   #
@@ -65,18 +68,26 @@ class AmqpBase
               callback = undefined
     return @connection
 
-  disconnect:(callback)=>
-    if @connection?.disconnect?
-       @_on_disconnect ()=>
-         @connection.disconnect()
-         @connection = undefined
-         callback?(undefined, true)
-       return true
+  disconnect:(force, callback)=>
+    if typeof force is 'function' and not callback?
+      callback = force
+      force = undefined
+    if @connection_shared and not force
+      callback(new Error("This class did not create the current connection and hence will not disconnect from it unless `true` is passed as the `force` parameter."))
     else
-       @_on_disconnect ()=>
-         @connection = undefined
-         callback?(undefined, false)
-       return false
+      if @connection?.disconnect?
+         @_on_disconnect ()=>
+           @connection.disconnect()
+           @connection_shared = false
+           @connection = undefined
+           callback?(undefined, true)
+         return true
+      else
+         @_on_disconnect ()=>
+           @connection_shared = false
+           @connection = undefined
+           callback?(undefined, false)
+         return false
 
   # hook for subclasses to clear or set state on connect
   _on_connect:(callback)->callback?()
