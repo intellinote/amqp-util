@@ -9,9 +9,13 @@ LIB_DIR   = if fs.existsSync(LIB_COV) then LIB_COV else LIB
 amqp       = require 'amqp'
 RandomUtil = require('inote-util').RandomUtil
 AsyncUtil  = require('inote-util').AsyncUtil
+LogUtil    = require('inote-util').LogUtil
 process    = require 'process'
 ################################################################################
 AmqpBase   = require(path.join(LIB_DIR, 'amqp-base')).AmqpBase
+################################################################################
+DEBUG      = /(^|,)((all)|(amqp-?util)|(amqp-?consumer))(,|$)/i.test process.env.NODE_DEBUG # add `amqp-util` or `amqp-consumer` to NODE_DEBUG to enable debugging output
+LogUtil    = LogUtil.init({debug:DEBUG, prefix: "AmqpConsumer:"})
 ################################################################################
 
 # An AMQP message consumer.
@@ -114,12 +118,19 @@ class AmqpConsumer extends AmqpBase
       callback? new Error("Not connected."), undefined, undefined, undefined, undefined
       return undefined
     else
+      LogUtil.tpdebug "Creating (or fetching) the queue named `#{queue_name}`..."
       @_make_or_get_queue queue_name, queue_options, (err, queue, queue_was_cached)=>
         if err?
+          LogUtil.tpdebug "...encountered error:", err
           callback? err, queue, queue_name, undefined, undefined
         else unless queue?
+          LogUtil.tpdebug "...no queue was generated for some reason, but also no error was generated."
           callback?(new Error("Unable to create queue for unknown reasons"), queue, queue_name)
         else
+          if queue_was_cached
+            LogUtil.tpdebug "...pre-existing queue was found in cache."
+          else
+            LogUtil.tpdebug "...queue was created or fetched from AMQP server."
           if (not queue_was_cached) and (bind_pattern? or exchange_name?)
             @bind_queue_to_exchange queue, exchange_name, bind_pattern, (err, queue, exchange_name, bind_pattern)->
               callback? err, queue, queue_name, exchange_name, bind_pattern
@@ -163,15 +174,18 @@ class AmqpConsumer extends AmqpBase
     unless queue? and bind_pattern?
       callback?(new Error("Expected queue and bind-pattern"))
     else
+      LogUtil.tpdebug "Binding queue named `#{queue_name}` to the exchange named `#{exchange_name}` with bind-pattern `#{bind_pattern}`..."
       called_back = false
       queue.once 'error', (err)=>
         unless called_back
           called_back = true
+          LogUtil.tpdebug "...encountered error:", err
           callback?( err, queue, exchange_name, bind_pattern )
           callback = undefined
       queue.once 'queueBindOk', ()=>
         unless called_back
           called_back = true
+          LogUtil.tpdebug "...queueBindOk."
           callback?( undefined, queue, exchange_name, bind_pattern )
           callback = undefined
       queue.bind exchange_name, bind_pattern
@@ -188,15 +202,18 @@ class AmqpConsumer extends AmqpBase
     unless queue? and bind_pattern?
       callback?(new Error("Expected queue and bind-pattern"))
     else
+      LogUtil.tpdebug "Unbinding queue named `#{queue_name}` from the exchange named `#{exchange_name}` with bind-pattern `#{bind_pattern}`..."
       called_back = false
       queue.once 'error', (err)=>
         unless called_back
           called_back = true
+          LogUtil.tpdebug "...encountered error:", err
           callback?( err, queue, exchange_name, bind_pattern )
           callback = undefined
       queue.once 'queueUnbindOk', ()=>
         unless called_back
           called_back = true
+          LogUtil.tpdebug "...queueUnbindOk."
           callback?( undefined, queue, exchange_name, bind_pattern )
           callback = undefined
       queue.unbind exchange_name, bind_pattern
@@ -222,6 +239,7 @@ class AmqpConsumer extends AmqpBase
     unless queue? and message_handler?
       callback?(new Error("Expected queue and message-handler"), undefined, undefined, undefined)
     else
+      LogUtil.tpdebug "Subscribing to queue named #{queue_name}..."
       called_back = false
       basic_consume_ok = false
       timer_one = null
@@ -229,6 +247,7 @@ class AmqpConsumer extends AmqpBase
       queue.once 'error', (err)=>
         unless called_back
           called_back = true
+          LogUtil.tpdebug "...encountered error:", err
           callback?( err, queue, queue_name, undefined )
           callback = undefined
       queue.once 'basicConsumeOk', ()=>
@@ -237,14 +256,15 @@ class AmqpConsumer extends AmqpBase
         DELAY_TWO = DELAY_ONE*2
         timer_one = AsyncUtil.wait DELAY_ONE, ()->
           unless called_back
-            console.log "WARNING: basicConsumeOk event emitted but the consumerTag callback was not called within #{DELAY_ONE} milliseconds."
+            LogUtil.tpdebug "WARNING: basicConsumeOk event emitted but the consumerTag callback was not called within #{DELAY_ONE} milliseconds."
             AsyncUtil.cancel_wait timer_one
         timer_two = AsyncUtil.wait DELAY_TWO, ()->
           unless called_back
-            console.log "WARNING: basicConsumeOk event emitted but the consumerTag callback was not called within #{DELAY_TWO} milliseconds. Calling-back regardless."
+            LogUtil.tpwarn "WARNING: basicConsumeOk event emitted but the consumerTag callback was not called within #{DELAY_TWO} milliseconds. Calling-back regardless."
             AsyncUtil.cancel_wait timer_one
             AsyncUtil.cancel_wait timer_two
             called_back = true
+            LogUtil.tpdebug "...subscribed but no consumerTag was returned in #{DELAY_TWO} milliseconds, giving up waiting on consumerTag."
             callback?( err, queue, queue_name, undefined )
             callback = undefined
       # console.log queue.subscribe(subscription_options, ((message,tail...)=>message_handler(@message_converter(message), tail...)))
@@ -255,18 +275,25 @@ class AmqpConsumer extends AmqpBase
           called_back = true
           if ok?.consumerTag? and queue_name?
             @queue_names_by_subscription_tag[ok?.consumerTag] = queue_name
+          LogUtil.tpdebug "...subscribed with consumerTag #{ok?.consumerTag}."
           callback?( undefined, queue, queue_name, ok?.consumerTag )
           callback = undefined
 
   unsubscribe_from_queue:(subscription_tag, callback)=>
-    subscription_tag = @_resolve_subscription_tag_alias subscription_tag
+    LogUtil.tpdebug "Unsubscribing from consumerTag `#{subscription_tag}`..."
+    [subscription_tag, chain] = @_resolve_subscription_tag_alias subscription_tag
+    if chain?.length > 1
+      LogUtil.tpdebug "...after de-aliasing, consumerTag resolved to `#{subscription_tag}` via chain #{JSON.stringify(chain)}..."
     queue = @get_queue_for_subscription_tag subscription_tag
     unless queue?
-      callback? new Error("No queue found for subscription_tag #{subscription_tag}.")
+      LogUtil.tpdebug "...no associated queue found for `#{subscription_tag}`, calling back with error."
+      callback? new Error("No queue found for subscription_tag #{subscription_tag}."), subscription_tag, chain
     else
       queue.unsubscribe(subscription_tag)
-      delete @queue_names_by_subscription_tag[subscription_tag]
-      delete @subscription_tag_aliases[subscription_tag]
+      for tag in chain
+        delete @queue_names_by_subscription_tag[tag]
+        delete @subscription_tag_aliases[tag]
+      LogUtil.tpdebug "...successfully unsubscribed."
       callback? undefined
 
   # Subscribes the given `message_handler` to the specified queue, creating a
@@ -319,13 +346,20 @@ class AmqpConsumer extends AmqpBase
       else
         throw err
     else
+      #
+      if typeof queue_or_queue_name is 'string'
+        LogUtil.tpdebug "Subscribing to the queue named #{queue_or_queue_name} via the queue+bind+subscribe convenience method..."
+      else
+        LogUtil.tpdebug "Subscribing to a queue object (name=#{queue_or_queue_name?.__amqp_util_queue_name}?) via the queue+bind+subscribe convenience method..."
       @_maybe_create_queue queue_or_queue_name, queue_options, exchange_name, bind_pattern, (err, queue)=>
         if err?
+          LogUtil.tpdebug "...encountered error:", err
           if callback?
             callback err
           else
             throw err
         else
+          LogUtil.tpdebug "...queue created (and optionally bound) or fetched from cache. Subscribing."
           @subscribe_to_queue (queue ? queue_name), subscription_options, message_handler, callback
 
 
@@ -409,13 +443,17 @@ class AmqpConsumer extends AmqpBase
 
 
   _resolve_subscription_tag_alias:(tag)=>
+    chain = []
     while @subscription_tag_aliases?[tag]?
+      chain.push tag
       tag = @subscription_tag_aliases[tag]
-    return tag
+    chain.push tag
+    return [tag, chain]
 
   _handle_tag_change:(event)=>
     # if the given event is valid and referneces an oldConsumerTag we're tracking
     if event?.oldConsumerTag? and event?.consumerTag? and (@subscription_tag_aliases?[event.oldConsumerTag]? or @queue_names_by_subscription_tag?[event.oldConsumerTag]?)
+      LogUtil.tpdebug "handling tag.change event #{JSON.stringify(event)}."
       if @subscription_tag_aliases?
         @subscription_tag_aliases[event.oldConsumerTag] = event.consumerTag
       if @queue_names_by_subscription_tag?

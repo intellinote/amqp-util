@@ -73,8 +73,8 @@ describe 'AMQPProducer',->
     @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
 
   it "supports a default routing key",(done)=>
+    amqpp = new AMQPProducer()
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer()
       amqpp.connect TEST_BROKER, (err)=>
         assert.ok not err?, err
         amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
@@ -83,12 +83,13 @@ describe 'AMQPProducer',->
     @queue.once 'queueBindOk', ()=>
       @queue.subscribe (message,headers,info)->
         message.data.toString().should.equal 'test-message'
-        done()
+        amqpp.disconnect ()=>
+          done()
     @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
 
   it "supports default publishing options",(done)=>
+    amqpp = new AMQPProducer()
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer()
       amqpp.connect TEST_BROKER, (err)=>
         assert.ok not err?, err
         amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
@@ -99,12 +100,13 @@ describe 'AMQPProducer',->
       @queue.subscribe (message,headers,info)->
         message.data.toString().should.equal 'test-messageX'
         headers.Foo.should.equal 'Bar'
-        done()
+        amqpp.disconnect ()=>
+          done()
     @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
 
   it "supports a payload converter that changes the message before it is published.",(done)=>
+    amqpp = new AMQPProducer()
     @queue.once 'basicConsumeOk',()=>
-      amqpp = new AMQPProducer()
       amqpp.connect TEST_BROKER, (err)=>
         assert.ok not err?, err
         amqpp.create_exchange TEST_EXCHANGE, TEST_EXCHANGE_OPTIONS, (err)=>
@@ -114,5 +116,6 @@ describe 'AMQPProducer',->
     @queue.once 'queueBindOk', ()=>
       @queue.subscribe (message,headers,info)->
         message.data.toString().should.equal 'TEST-MESSAGE'
-        done()
+        amqpp.disconnect ()=>
+          done()
     @queue.bind(TEST_EXCHANGE, TEST_ROUTING_KEY)
