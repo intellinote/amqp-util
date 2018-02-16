@@ -269,10 +269,6 @@ class AmqpConsumer extends AmqpBase
       delete @subscription_tag_aliases[subscription_tag]
       callback? undefined
 
-  _resolve_subscription_tag_alias:(tag)=>
-    while @subscription_tag_aliases?[tag]?
-      tag = @subscription_tag_aliases[tag]
-    return tag
   # Subscribes the given `message_handler` to the specified queue, creating a
   # new queue if necessary.
   #
@@ -403,13 +399,6 @@ class AmqpConsumer extends AmqpBase
     @connection.on "tag.change", @_handle_tag_change
     callback?()
 
-  _handle_tag_change:(event)=>
-    if event?.oldConsumerTag? and event?.consumerTag?
-      if @subscription_tag_aliases?
-        @subscription_tag_aliases[event.oldConsumerTag] = event.consumerTag
-      if @queue_names_by_subscription_tag?
-        @queue_names_by_subscription_tag[event.consumerTag] = @queue_names_by_subscription_tag[event.oldConsumerTag]
-
   _on_disconnect:(callback)=>
     if @connection?.removeListener?
       @connection.removeListener "tag.change", @_handle_tag_change
@@ -417,6 +406,20 @@ class AmqpConsumer extends AmqpBase
     @queue_names_by_subscription_tag = undefined
     @subscription_tag_aliases = undefined
     callback?()
+
+
+  _resolve_subscription_tag_alias:(tag)=>
+    while @subscription_tag_aliases?[tag]?
+      tag = @subscription_tag_aliases[tag]
+    return tag
+
+  _handle_tag_change:(event)=>
+    # if the given event is valid and referneces an oldConsumerTag we're tracking
+    if event?.oldConsumerTag? and event?.consumerTag? and (@subscription_tag_aliases?[event.oldConsumerTag]? or @queue_names_by_subscription_tag?[event.oldConsumerTag]?)
+      if @subscription_tag_aliases?
+        @subscription_tag_aliases[event.oldConsumerTag] = event.consumerTag
+      if @queue_names_by_subscription_tag?
+        @queue_names_by_subscription_tag[event.consumerTag] = @queue_names_by_subscription_tag[event.oldConsumerTag]
 
 # ███████ ██    ██ ██████   ██████ ██       █████  ███████ ███████ ███████ ███████
 # ██      ██    ██ ██   ██ ██      ██      ██   ██ ██      ██      ██      ██
