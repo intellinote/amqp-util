@@ -1,6 +1,6 @@
 {
   "name"        : "amqp-util",
-  "version"     : "2.0.1",
+  "version"     : "2.0.2",
   "description" : "Convenience classes on which to build AMQP producers and consumers in Node.js.",
   "repository"  : { "type": "git", "url": "https://github.com/intellinote/amqp-util.git" },
   "bugs"        : { "url": "https://github.com/intellinote/amqp-util/issues" },
