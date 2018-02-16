@@ -1,3 +1,4 @@
+################################################################################
 fs        = require 'fs'
 path      = require 'path'
 HOME_DIR  = path.join __dirname, '..'
@@ -258,14 +259,20 @@ class AmqpConsumer extends AmqpBase
           callback = undefined
 
   unsubscribe_from_queue:(subscription_tag, callback)=>
+    subscription_tag = @_resolve_subscription_tag_alias subscription_tag
     queue = @get_queue_for_subscription_tag subscription_tag
     unless queue?
       callback? new Error("No queue found for subscription_tag #{subscription_tag}.")
     else
       queue.unsubscribe(subscription_tag)
       delete @queue_names_by_subscription_tag[subscription_tag]
+      delete @subscription_tag_aliases[subscription_tag]
       callback? undefined
 
+  _resolve_subscription_tag_alias:(tag)=>
+    while @subscription_tag_aliases?[tag]?
+      tag = @subscription_tag_aliases[tag]
+    return tag
   # Subscribes the given `message_handler` to the specified queue, creating a
   # new queue if necessary.
   #
@@ -392,11 +399,23 @@ class AmqpConsumer extends AmqpBase
   _on_connect:(callback)=>
     @queues_by_name ?= { }
     @queue_names_by_subscription_tag ?= { }
+    @subscription_tag_aliases ?= {}
+    @connection.on "tag.change", @_handle_tag_change
     callback?()
 
+  _handle_tag_change:(event)=>
+    if event?.oldConsumerTag? and event?.consumerTag?
+      if @subscription_tag_aliases?
+        @subscription_tag_aliases[event.oldConsumerTag] = event.consumerTag
+      if @queue_names_by_subscription_tag?
+        @subscription_tag_aliases[event.consumerTag] = @queue_names_by_subscription_tag[event.oldConsumerTag]
+
   _on_disconnect:(callback)=>
+    if @connection?.removeListener?
+      @connection.removeListener "tag.change", @_handle_tag_change
     @queues_by_name = undefined  # TODO cleanly unsub from queues?
-    @queue_names_by_subscription_tag ?= { }
+    @queue_names_by_subscription_tag = undefined
+    @subscription_tag_aliases = undefined
     callback?()
 
 # ███████ ██    ██ ██████   ██████ ██       █████  ███████ ███████ ███████ ███████
