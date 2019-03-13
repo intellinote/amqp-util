@@ -20,7 +20,7 @@
 
 #
 amqp     = require 'amqp'
-optimist = require 'optimist'
+yargs = require 'yargs'
 
 # ## Implementation
 
@@ -220,8 +220,8 @@ class AMQPCLI
 
   # **main** reads the command line parameters and executes the appropriate command.
   main:()=>
-    # Set up the command line parameters using node-optimist.
-    optimist = optimist.options({
+    # Set up the command line parameters using node-yargs.
+    yargs = yargs.options({
       'h': { alias: 'help', boolean: true, describe: "Show help" }
       'b': { alias: 'broker', default: 'amqp://guest:guest@localhost:5672', describe: "Message broker to connect to" }
       'e.name': { alias: 'exchange.name', describe: "Exchange name." }
@@ -241,21 +241,21 @@ class AMQPCLI
       'q.only-if-unused': { alias: 'queue.only-if-unused', boolean: true, describe: "If set when destroying a queue, the queue is deleted only if there are no consumers subscribed to it." }
       'k': { alias: 'routing-key', default:'*', describe: "When binding a queue to an exchange, the routing key value to bind with." }
     }).usage('Usage: $0 [check|create|destroy|bind|unbind] [exchange|queue] [OPTIONS]')
-    argv = optimist.argv
+    argv = yargs.argv
 
     # Show a help message if needed.
-    if optimist.argv.help or optimist.argv._.length is 0 or optimist.argv._[0] is 'help'
+    if yargs.argv.help or yargs.argv._.length is 0 or yargs.argv._[0] is 'help'
       console.log ""
       console.log "A command line tool for manipulating AMQP Queues and Exchanges."
       console.log ""
-      optimist.showHelp()
+      yargs.showHelp()
       console.log ""
       console.log "Examples:"
-      console.log " #{optimist['$0']} create exchange --e.name my-exchange"
+      console.log " #{yargs['$0']} create exchange --e.name my-exchange"
       console.log "   creates a new exchange named \"my-exchange\" (unless it already exists)."
-      console.log " #{optimist['$0']} create queue --q.name my-queue"
+      console.log " #{yargs['$0']} create queue --q.name my-queue"
       console.log "   creates a new queue named \"my-queue\" (unless it already exists)."
-      console.log " #{optimist['$0']} bind queue --q.name my-queue --e.name my-exchange"
+      console.log " #{yargs['$0']} bind queue --q.name my-queue --e.name my-exchange"
       console.log "   binds the queue named \"my-queue\" to the exchange named \"my-exchange\"."
       console.log ""
       console.log "Also see"
@@ -270,9 +270,9 @@ class AMQPCLI
     else
       broker = argv.broker
       conn_opts = @connection_options_from_argv(argv)
-      switch optimist.argv._[0]
+      switch yargs.argv._[0]
         when 'log'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when logging an exchange. Use --help for help."
@@ -288,10 +288,10 @@ class AMQPCLI
             when 'connection','channel'
               @log_connection broker, conn_opts
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         when 'bind'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when binding a queue. Use --help for help."
@@ -302,10 +302,10 @@ class AMQPCLI
               else
                 @bind_queue broker, conn_opts, argv.queue.name, argv.exchange.name, argv['routing-key']
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         when 'unbind'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when unbinding a queue. Use --help for help."
@@ -316,10 +316,10 @@ class AMQPCLI
               else
                 @unbind_queue broker, conn_opts, argv.queue.name, argv.exchange.name, argv['routing-key']
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         when 'create'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when creating an exchange. Use --help for help."
@@ -335,10 +335,10 @@ class AMQPCLI
                 opts = @queue_options_from_argv(argv)
                 @create_queue broker, conn_opts, argv.queue.name, opts
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         when 'check'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when checking an exchange. Use --help for help."
@@ -352,10 +352,10 @@ class AMQPCLI
               else
                 @check_queue broker, conn_opts, argv.queue.name
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         when 'delete','destroy'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when destroying an exchange. Use --help for help."
@@ -372,10 +372,10 @@ class AMQPCLI
                 only_if_empty = argv.queue['only-if-empty']
                 @destroy_queue broker, conn_opts, argv.queue.name, only_if_unused, only_if_empty
              else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
               @process_exit(1)
         else
-          console.log "ACTION",optimist.argv._[0],"NOT RECOGNIZED HERE."
+          console.log "ACTION",yargs.argv._[0],"NOT RECOGNIZED HERE."
           @process_exit(1)
 
 # Run the `main` method when this file is loaded directly (rather than included via a `require` call).
