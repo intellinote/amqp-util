@@ -20,7 +20,7 @@
 
 #
 amqp     = require 'amqp'
-optimist = require 'optimist'
+yargs = require 'yargs'
 
 # ## Implementation
 
@@ -30,33 +30,43 @@ optimist = require 'optimist'
 class AMQPCLI
 
   # **report_error** prints the given message to `console.error` then exits with the given `status`.
-  report_error:(message_suffix,err,status=1)->
+  report_error:(message_suffix,err,status=1)=>
     console.error "[ERROR] Error encountered #{message_suffix}"
     console.error err
     console.error err.stack
-    process.exit(status)
+    @process_exit(status)
 
   # **report_success** prints the given message to `console.log` then exits with the given `status`.
-  report_success:(type,message_suffix,status=0)->
+  report_success:(type,message_suffix,status=0)=>
     console.log "#{type} #{message_suffix}"
-    process.exit(status)
+    @process_exit(status)
 
   # **open_connection** creates a connection to the specified broker, adding a basic error handler before returning it.
-  open_connection:(broker_url,connection_options)->
-    connection = amqp.createConnection({url:broker_url},connection_options)
+  open_connection:(broker_url,connection_options)=>
+    connection = @connection = amqp.createConnection({url:broker_url},connection_options)
     connection.once 'error', (err)=>
       @report_error "while connecting to broker at \"#{broker_url}\".", err
     return connection
 
+  close_connection:()=>
+    if @connection?.disconnect?
+      @connecttion.disconnect()
+      @connection = null
+    return connection
+
+  process_exit:(status_code)=>
+    @close_connection()
+    process.exit(status_code)
+
   # **log_connection** establishes a connection to the specified broker and then dumps a description of the connection to `console.log`.
-  log_connection:(broker_url,connection_options)->
+  log_connection:(broker_url,connection_options)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       console.log connection
       @report_success("[LOG]","logged.")
 
   # **log_exchange** dumps a description of the specified exchange to `console.log`.
-  log_exchange:(broker_url,connection_options,exchange_name)->
+  log_exchange:(broker_url,connection_options,exchange_name)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange_options = { passive:true, noDeclare:true }
@@ -67,7 +77,7 @@ class AMQPCLI
         @report_error "Exchange named \"#{exchange_name}\" was NOT found.",err
 
   # **log_queue** dumps a description of the specified queue to `console.log`.
-  log_queue:(broker_url,connection_options,queue_name)->
+  log_queue:(broker_url,connection_options,queue_name)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       queue_options = { passive:true, noDeclare:true }
@@ -78,7 +88,7 @@ class AMQPCLI
         @report_error "Queue named \"#{queue_name}\" was NOT found.",err
 
   # **create_exchange** connects to the specified broker and creates the specified exchange.
-  create_exchange:(broker_url,connection_options,exchange_name,exchange_options)->
+  create_exchange:(broker_url,connection_options,exchange_name,exchange_options)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange = connection.exchange exchange_name,exchange_options,(exchange)=>
@@ -87,7 +97,7 @@ class AMQPCLI
         @report_error "while creating exchange named \"#{exchange_name}\".", err
 
   # **check_exchange** connects to the specified broker and tests whether the specified exchange exists.
-  check_exchange:(broker_url,connection_options,exchange_name)->
+  check_exchange:(broker_url,connection_options,exchange_name)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange_options = { passive:true, noDeclare:true }
@@ -97,7 +107,7 @@ class AMQPCLI
         @report_success "[NOT FOUND]","Exchange named \"#{exchange_name}\" was NOT found."
 
   # **destroy_exchange** connects to the specified broker and deletes the specified exchange.
-  destroy_exchange:(broker_url,connection_options,exchange_name,only_if_unused)->
+  destroy_exchange:(broker_url,connection_options,exchange_name,only_if_unused)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange_options = { passive:true, noDeclare:true }
@@ -111,7 +121,7 @@ class AMQPCLI
         @report_success "[GONE]","Exchange named \"#{exchange_name}\" already didn't exist."
 
   # **create_queue** connects to the specified broker and creates the specified queue.
-  create_queue:(broker_url,connection_options,queue_name,queue_options)->
+  create_queue:(broker_url,connection_options,queue_name,queue_options)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       queue = connection.queue queue_name,queue_options,(queue)=>
@@ -120,7 +130,7 @@ class AMQPCLI
         @report_error "while creating queue named \"#{queue_name}\".", err
 
   # **check_queue** connects to the specified broker and tests whether the specified queue exists.
-  check_queue:(broker_url,connection_options,queue_name)->
+  check_queue:(broker_url,connection_options,queue_name)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       queue_options = { passive:true, noDeclare:true }
@@ -130,7 +140,7 @@ class AMQPCLI
         @report_success "[NOT FOUND]","Queue named \"#{queue_name}\" was NOT found."
 
   # **destroy_queue** connects to the specified broker and deletes the specified queue.
-  destroy_queue:(broker_url,connection_options,queue_name,only_if_unused,only_if_empty)->
+  destroy_queue:(broker_url,connection_options,queue_name,only_if_unused,only_if_empty)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       queue_options = { passive:true, noDeclare:true }
@@ -144,7 +154,7 @@ class AMQPCLI
         @report_success "[GONE]","Queue named \"#{queue_name}\" already didn't exist."
 
   # **bind_queue** binds the specified queue to the specified exchange (by routing key).
-  bind_queue:(broker_url,connection_options,queue_name,exchange_name,routing_key)->
+  bind_queue:(broker_url,connection_options,queue_name,exchange_name,routing_key)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange_options = { passive:true, noDeclare:true }
@@ -162,7 +172,7 @@ class AMQPCLI
         @report_error "Exchange named \"#{exchange_name}\" was NOT found.", err
 
   # **unbind_queue** unbinds the specified queue from the specified exchange (by routing key).
-  unbind_queue:(broker_url,connection_options,queue_name,exchange_name,routing_key)->
+  unbind_queue:(broker_url,connection_options,queue_name,exchange_name,routing_key)=>
     connection = @open_connection(broker_url,connection_options)
     connection.once 'ready', ()=>
       exchange_options = { passive:true, noDeclare:true }
@@ -180,12 +190,12 @@ class AMQPCLI
         @report_error "Exchange named \"#{exchange_name}\" was NOT found.", err
 
   # **connection_options_from_argv** parses a node-amqp-compatible connection options map from the given command line parameters.
-  connection_options_from_argv:(argv)->
+  connection_options_from_argv:(argv)=>
     opts = {}
     return opts
 
   # **exchange_options_from_argv** parses a node-amqp-compatible exchange options map from the given command line parameters.
-  exchange_options_from_argv:(argv)->
+  exchange_options_from_argv:(argv)=>
     opts = {}
     opts.type = argv.exchange.type if argv.exchange?.type?
     opts.passive = argv.exchange.passive if argv.exchange?.passive?
@@ -196,7 +206,7 @@ class AMQPCLI
     return opts
 
   # **queue_options_from_argv** parses a node-amqp-compatible queue options map from the given command line parameters.
-  queue_options_from_argv:(argv)->
+  queue_options_from_argv:(argv)=>
     opts = {}
     opts.passive = argv.queue.passive if argv.queue?.passive?
     opts.durable = argv.queue.durable if argv.queue?.durable?
@@ -209,9 +219,9 @@ class AMQPCLI
     return opts
 
   # **main** reads the command line parameters and executes the appropriate command.
-  main:()->
-    # Set up the command line parameters using node-optimist.
-    optimist = optimist.options({
+  main:()=>
+    # Set up the command line parameters using node-yargs.
+    yargs = yargs.options({
       'h': { alias: 'help', boolean: true, describe: "Show help" }
       'b': { alias: 'broker', default: 'amqp://guest:guest@localhost:5672', describe: "Message broker to connect to" }
       'e.name': { alias: 'exchange.name', describe: "Exchange name." }
@@ -231,21 +241,21 @@ class AMQPCLI
       'q.only-if-unused': { alias: 'queue.only-if-unused', boolean: true, describe: "If set when destroying a queue, the queue is deleted only if there are no consumers subscribed to it." }
       'k': { alias: 'routing-key', default:'*', describe: "When binding a queue to an exchange, the routing key value to bind with." }
     }).usage('Usage: $0 [check|create|destroy|bind|unbind] [exchange|queue] [OPTIONS]')
-    argv = optimist.argv
+    argv = yargs.argv
 
     # Show a help message if needed.
-    if optimist.argv.help or optimist.argv._.length is 0 or optimist.argv._[0] is 'help'
+    if yargs.argv.help or yargs.argv._.length is 0 or yargs.argv._[0] is 'help'
       console.log ""
       console.log "A command line tool for manipulating AMQP Queues and Exchanges."
       console.log ""
-      optimist.showHelp()
+      yargs.showHelp()
       console.log ""
       console.log "Examples:"
-      console.log " #{optimist['$0']} create exchange --e.name my-exchange"
+      console.log " #{yargs['$0']} create exchange --e.name my-exchange"
       console.log "   creates a new exchange named \"my-exchange\" (unless it already exists)."
-      console.log " #{optimist['$0']} create queue --q.name my-queue"
+      console.log " #{yargs['$0']} create queue --q.name my-queue"
       console.log "   creates a new queue named \"my-queue\" (unless it already exists)."
-      console.log " #{optimist['$0']} bind queue --q.name my-queue --e.name my-exchange"
+      console.log " #{yargs['$0']} bind queue --q.name my-queue --e.name my-exchange"
       console.log "   binds the queue named \"my-queue\" to the exchange named \"my-exchange\"."
       console.log ""
       console.log "Also see"
@@ -254,119 +264,119 @@ class AMQPCLI
       console.log "  rabbitmqctl"
       console.log "for a more sophisticated client for working with a RabbitMQ broker."
       console.log ""
-      process.exit()
+      @process_exit()
 
     # Otherwise run the appropriate command (as stored in `argv._[0]` and `argv._[1]`).
     else
       broker = argv.broker
       conn_opts = @connection_options_from_argv(argv)
-      switch optimist.argv._[0]
+      switch yargs.argv._[0]
         when 'log'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when logging an exchange. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @log_exchange broker, conn_opts, argv.exchange.name
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when logging a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @log_queue broker, conn_opts, argv.queue.name
             when 'connection','channel'
               @log_connection broker, conn_opts
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         when 'bind'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when binding a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when binding a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @bind_queue broker, conn_opts, argv.queue.name, argv.exchange.name, argv['routing-key']
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         when 'unbind'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when unbinding a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when unbinding a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @unbind_queue broker, conn_opts, argv.queue.name, argv.exchange.name, argv['routing-key']
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         when 'create'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when creating an exchange. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 opts = @exchange_options_from_argv(argv)
                 @create_exchange broker, conn_opts, argv.exchange.name, opts
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when creating a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 opts = @queue_options_from_argv(argv)
                 @create_queue broker, conn_opts, argv.queue.name, opts
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         when 'check'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when checking an exchange. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @check_exchange broker, conn_opts, argv.exchange.name
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when checking a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 @check_queue broker, conn_opts, argv.queue.name
             else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         when 'delete','destroy'
-          switch optimist.argv._[1]
+          switch yargs.argv._[1]
             when 'exchange'
               unless argv.exchange?.name?.length > 0
                 console.error "Exchange name is required when destroying an exchange. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 only_if_unused = argv.exchange['only-if-unused']
                 @destroy_exchange broker, conn_opts, argv.exchange.name, only_if_unused
             when 'queue'
               unless argv.queue?.name?.length > 0
                 console.error "Queue name is required when destroying a queue. Use --help for help."
-                process.exit(1)
+                @process_exit(1)
               else
                 only_if_unused = argv.queue['only-if-unused']
                 only_if_empty = argv.queue['only-if-empty']
                 @destroy_queue broker, conn_opts, argv.queue.name, only_if_unused, only_if_empty
              else
-              console.error "OBJECT",optimist.argv._[1],"NOT RECOGNIZED HERE."
-              process.exit(1)
+              console.error "OBJECT",yargs.argv._[1],"NOT RECOGNIZED HERE."
+              @process_exit(1)
         else
-          console.log "ACTION",optimist.argv._[0],"NOT RECOGNIZED HERE."
-          process.exit(1)
+          console.log "ACTION",yargs.argv._[0],"NOT RECOGNIZED HERE."
+          @process_exit(1)
 
 # Run the `main` method when this file is loaded directly (rather than included via a `require` call).
 if require.main is module
