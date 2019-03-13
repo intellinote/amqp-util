@@ -1,6 +1,6 @@
 {
   "name": "amqp-util",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Convenience classes on which to build AMQP producers and consumers in Node.js.",
   "repository": {
     "type": "git",
