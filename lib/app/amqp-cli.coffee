@@ -50,9 +50,9 @@ class AMQPCLI
 
   close_connection:()=>
     if @connection?.disconnect?
-      @connecttion.disconnect()
+      @connection.disconnect()
       @connection = null
-    return connection
+    return null
 
   process_exit:(status_code)=>
     @close_connection()
